@@ -1,18 +1,15 @@
+/*******************************************************
+ * Copyright (c) 2022, ArrayFire
+ * All rights reserved.
+ *
+ * This file is distributed under 3-clause BSD license.
+ * The complete license agreement can be obtained at:
+ * http://arrayfire.com/licenses/BSD-3-Clause
+ ********************************************************/
 #pragma once
 
 #include <arrayfire.h>
 #include <string>
-
-namespace count{
-    template <int... Is>
-    struct index {};
-
-    template <int N, int... Is>
-    struct gen_seq : gen_seq<N - 1, N - 1, Is...> {};
-
-    template <int... Is>
-    struct gen_seq<0, Is...> : index<Is...> {};
-}
 
 std::string repeat(int n, const std::string& str);
 std::size_t utf8str_len(std::string str);

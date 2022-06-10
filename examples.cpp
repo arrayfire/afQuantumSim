@@ -696,18 +696,18 @@ int main(int argc, char** argv)
     aqs::initialize(argc, argv);
     std::cout << "\n";
 
-    //quantum_classic_xor_example();
-    //quantum_classic_or_example();
-    //quantum_2bit_adder_example();
-    //quantum_entanglement_example();
-    //quantum_superposition_example();
-    //quantum_grover_example();
-    //quantum_fourier_transform_example();
+    quantum_classic_xor_example();
+    quantum_classic_or_example();
+    quantum_2bit_adder_example();
+    quantum_entanglement_example();
+    quantum_superposition_example();
+    quantum_grover_example();
+    quantum_fourier_transform_example();
 
-    //quantum_phase_estimation_example();
+    quantum_phase_estimation_example();
     quantum_shor_algorithm();
-    //quantum_constant_addition();
-    //quantum_two_addition();
+    quantum_constant_addition();
+    quantum_two_addition();
 
     //quantum_counting();
 }

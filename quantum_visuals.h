@@ -24,7 +24,7 @@ namespace aqs
      * 
      * @param circuit circuit to be displayed
      */
-    void print_circuit_matrix(const QGate& circuit);
+    void print_circuit_matrix(const QCircuit& circuit);
 
     /**
      * @brief Prints the global state stored in the simulator to the stdout stream

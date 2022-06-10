@@ -128,7 +128,6 @@ void QState::force_normalize()
         throw std::invalid_argument{"Cannot normalize a null state"};
     
     float mag = sqrtf(mag2);
-
     
     state_[0] = state_[0] / mag;
     state_[1] = state_[1] / mag;
@@ -1039,7 +1038,7 @@ QCircuit& ControlCircuitGate::operator()(QCircuit& qc) const
 
 void initialize(int argc, char** argv)
 {
-    int device = (argc > 1) ? std::atoi(argv[1]) : 0;
+    int device = (argc > 1) ? ::std::stoi(argv[1]) : 0;
     af::setDevice(device);
     af::info();
 

@@ -25,9 +25,13 @@ It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
 
 * Implement elaborated examples (see [link](https://qiskit.org/textbook/ch-applications/algs_for_apps_index.html))
 
-* Restructure the code to support more qubits and test
+* Optimize the profiling of multiple measurements using `profile_measure` and `profile_measure_all`
+
+* Implement the adjoint operator
 
 ### Medium Priority
+* Restructure the code to support more qubits and test
+
 * Implement deferral of simulation (currently the addition of matrix requires a matrix multiplication on the spot)
 
 * Implement an optimizer that using the deferral of simulation finds optimizations of the circuit created (removal of gates that cancel each other, combine the addition of the same gate multiple times in a pre-generated matrix)

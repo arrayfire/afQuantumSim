@@ -171,7 +171,7 @@ public:
     static const QState& one () { const static QState  one_state{ 0.0f, 1.0f }; return  one_state; };
 
 private:
-    af::cfloat state_[2] { { 1.0f , 0.0f } , { 0.0f , 0.0f }};
+    af::cfloat state_[2] { { 1.0f , 0.0f } , { 0.0f , 0.0f } };
 
     /**
      * @brief Normalizes the internal states of the qubit
@@ -397,11 +397,11 @@ QCircuit& operator<<(QCircuit& qc, const T& gate)
 class Barrier : public QGate
 {
 public:
-    Barrier(bool display_ = true) noexcept
-        :display{display_} {}
+    Barrier(bool visible_ = true) noexcept
+        :visible{visible_} {}
     QCircuit& operator()(QCircuit& qc) const override { return qc; }
-    std::string to_string() const override { return display ? "B;" : "P;"; }
-    bool display = true;
+    std::string to_string() const override { return visible ? "B;" : "P;"; }
+    bool visible = true;
 };
 
 class X : public QGate

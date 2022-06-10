@@ -57,6 +57,8 @@ static af::array y_matrix;
 static af::array z_matrix;
 static af::array hadamard_matrix;
 
+static af::randomEngine intern_rnd_engine;
+
 static std::random_device dv;
 static std::mt19937 rd_gen{dv()};
 
@@ -284,10 +286,28 @@ float QSimulator::state_probability(int state) const
 
 std::vector<int> QSimulator::profile_measure_all(int rep_count) const
 {
-    std::vector<int> count(state_count(), 0);
+    const int states = state_count();
+    std::vector<int> count(states);
 
-    for (int i = 0; i < rep_count; ++i)
-        count[peek_measure_all()]++;
+    //Generate rep_count amount of random numbers in [0, 1] and repeat them along dim 1
+    af::array rnd = af::tile(af::randu(rep_count, f32, intern_rnd_engine), 1, states);
+
+    //Generate the cumulative probability of each state along dim 1 and repeat them along dim 0
+    af::array probabilities = af::tile(af::transpose(af::accum(af::real(global_state_ * af::conjg(global_state_)))), rep_count, 1);
+
+    //Find all the states that posses a probability greater than or equal to the random value generated as indices + 1
+    auto temp = af::sum(af::ceil(probabilities - rnd), 1).as(u32);
+    
+    //Sort the indices of the states measured
+    af::array prob = af::sort(af::join(0, temp, af::iota(states, 1, u32) + 1), 0, false);
+
+    //Count the indices of the states measured
+    af::array keys, vals;
+    af::countByKey(keys, vals, prob, af::constant(1, rep_count + states));
+    vals -= 1;
+
+    //Copy it to the host
+    vals.host(count.data());
 
     return count;
 }
@@ -1049,6 +1069,9 @@ void initialize(int argc, char** argv)
     z_matrix = af::array(2, 2, z_mat);
 
     hadamard_matrix = af::array(2, 2, h_mat);
+
+    std::random_device rnd_device;
+    intern_rnd_engine = af::randomEngine(AF_RANDOM_ENGINE_THREEFRY, rnd_device());
 }
 
 QState X_op(const QState& state)

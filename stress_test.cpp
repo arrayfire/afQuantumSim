@@ -10,6 +10,7 @@
 #include <iostream>
 #include <chrono>
 #include <string>
+#include <vector>
 
 #include "quantum.h"
 
@@ -56,6 +57,25 @@ void circuit_gate_test(int qubit_count, int gate_qcount, int test_count)
             std::to_string(qubit_count) + " qubits  --");
 }
 
+void profile_measure_test(int qubit_count, int test_count)
+{
+    aqs::QSimulator qs(qubit_count);
+
+    auto func1 = [&]() {
+        qs.profile_measure_all(test_count);
+    };
+
+    auto func2 = [&]() {
+        std::vector<int> vals(qs.state_count());
+        for (int i = 0; i < test_count; ++i)
+            vals[qs.peek_measure_all()]++;
+    };
+
+    profile(func1, 1, "-- Test: New profile for circuit of " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, 1, "-- Test: Old profile for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
 int main(int argc, char** argv)
 {
     aqs::initialize(argc, argv);
@@ -65,9 +85,11 @@ int main(int argc, char** argv)
     int qcount = 8;
     int gateqcount = 4;
     
-    one_qubit_gate_test(qcount, repcount);
+    //one_qubit_gate_test(qcount, repcount);
 
-    circuit_gate_test(qcount, gateqcount, repcount);
+    //circuit_gate_test(qcount, gateqcount, repcount);
+
+    profile_measure_test(qcount, repcount);
 
     return 0;
 }

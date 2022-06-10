@@ -4,7 +4,7 @@ ArrayFire Quantum Simulator
 ## Description
 Implementation of a Quantum Computer Simulation using ArrayFire as Backend
 
-Currently supports the simulation of up to 30 qubits (theoritically), but has only been tested up to 13 qubits.
+Currently supports the simulation of up to 30 qubits (theoretically), but has only been tested up to 13 qubits.
 
 It has been tested to run correctly with ArrayFire CPU and ArrayFire OpenCL.
 
@@ -28,6 +28,8 @@ It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
 * Optimize the profiling of multiple measurements using `profile_measure` and `profile_measure_all`
 
 * Implement the adjoint operator
+
+* Add a QMeasurement class to deal with profiling and measurements
 
 ### Medium Priority
 * Restructure the code to support more qubits and test

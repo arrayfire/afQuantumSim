@@ -71,7 +71,8 @@ public:
     static std::array<std::complex<float>, 2> create_state(float polar_angle, float azimuthal_angle)
     {
         return { std::cos(polar_angle / 2.f) ,
-        std::complex<float>{ std::cos(azimuthal_angle), std::sin(azimuthal_angle)} * std::sin(polar_angle / 2.f) };
+                 std::complex<float>{ std::cos(azimuthal_angle),
+                 std::sin(azimuthal_angle)} * std::sin(polar_angle / 2.f) };
     }
     
     /**
@@ -108,7 +109,7 @@ public:
      * @param rep_count number of measurements to be done
      * @return std::array<int, 2> array containing the results
      */
-    std::array<int, 2> profile_measure(int rep_count) const;
+    std::array<uint32_t, 2> profile_measure(uint32_t rep_count) const;
 
     /**
      * @brief Returns the probability of finding the state in the |1> state
@@ -198,18 +199,18 @@ public:
      * 
      * @param qubit_count number of qubits for the simulation
      */
-    QCircuit(int qubit_count);
+    QCircuit(uint32_t qubit_count);
 
     // Global Operations
     void Global_Measure();
 
-    void Measure(int qubit);
+    void Measure(uint32_t qubit);
 
     template<typename T>
     friend QCircuit& operator<<(QCircuit& qc, const T& gate);
 
-    int qubit_count() const noexcept { return qubits_; }
-    int state_count() const noexcept { return fast_pow2(qubits_); }
+    uint32_t qubit_count() const noexcept { return qubits_; }
+    uint32_t state_count() const noexcept { return fast_pow2(qubits_); }
 
     af::array& circuit() noexcept { return circuit_; }
     const af::array& circuit() const noexcept { return circuit_; }
@@ -225,7 +226,7 @@ public:
 private:
     af::array circuit_;
     std::string representation_;
-    int qubits_{};
+    uint32_t qubits_{};
 };
 
 class QNoise
@@ -242,7 +243,7 @@ public:
      * @param initial_state initial state for all the qubits
      * @param noise_generator the noise generator to be used
      */
-    explicit QSimulator(int qubit_count,
+    explicit QSimulator(uint32_t qubit_count,
                         const QState& initial_state   = aqs::QState::zero(),
                         const QNoise& noise_generator = QNoise{});
 
@@ -268,7 +269,7 @@ public:
      * @return true for |1> state measurement
      * @return false for |0> state measurement
      */
-    bool peek_measure(int qubit) const;
+    bool peek_measure(uint32_t qubit) const;
 
     /**
      * @brief Measures the given qubit and collapses its state (and updates the global states) to it
@@ -281,7 +282,7 @@ public:
      * @return true for |1> state measurement
      * @return false for |0> state measurement
      */
-    bool measure(int qubit);
+    bool measure(uint32_t qubit);
 
     /**
      * @brief Returns a bit representation of the global state measured after measuring all bits.
@@ -306,7 +307,7 @@ public:
      * @param rep_count number of measurements to be done for profiling
      * @return std::array<int, 2> [0] = # of measurements for state |0>; [1] = # of measurements for state |1>
      */
-    std::array<int, 2> profile_measure(int qubit, int rep_count) const;
+    std::array<uint32_t, 2> profile_measure(uint32_t qubit, uint32_t rep_count) const;
 
     /**
      * @brief Profiles the measurement of the given output state from the stored global state using the given number of tests
@@ -314,10 +315,10 @@ public:
      * @param rep_count number of measurements to be done for profiling
      * @return std::vector<int> vector with the measurements [int(xxxx...)] = #number of measurements of state |xxxxx> where xxxxx is the binary output state
      */
-    std::vector<int> profile_measure_all(int rep_count) const;
+    std::vector<uint32_t> profile_measure_all(uint32_t rep_count) const;
 
-    QState& qubit(int index) noexcept { assert(index < qubit_count()); return states_[index]; };
-    const QState& qubit(int index) const noexcept { assert(index < qubit_count()); return states_[index]; };
+    QState& qubit(uint32_t index) noexcept { assert(index < qubit_count()); return states_[index]; };
+    const QState& qubit(uint32_t index) const noexcept { assert(index < qubit_count()); return states_[index]; };
 
     /**
      * @brief Returns the complex number of the state in the global state vector
@@ -325,7 +326,7 @@ public:
      * @param state int representation of the binary unique state
      * @return af::cfloat 
      */
-    af::cfloat state(int state) const noexcept { assert(state < state_count()); return global_state_(state).scalar<af::cfloat>(); }
+    af::cfloat state(uint32_t state) const noexcept { assert(state < state_count()); return global_state_(state).scalar<af::cfloat>(); }
 
     /**
      * @brief Returns the probability to measure the given qubit in the |1> state
@@ -333,7 +334,7 @@ public:
      * @param qubit index of the qubit
      * @return float probability of |1> state
      */
-    float qubit_probability_true(int qubit) const;
+    float qubit_probability_true(uint32_t qubit) const;
 
     /**
      * @brief Returns the probability to measure the given qubit in the |0> state
@@ -341,7 +342,7 @@ public:
      * @param qubit index of the qubit
      * @return float probability of |0> state
      */
-    float qubit_probability_false(int qubit) const { return 1.f - qubit_probability_true(qubit); }
+    float qubit_probability_false(uint32_t qubit) const { return 1.f - qubit_probability_true(qubit); }
 
     /**
      * @brief Returns the probability to measure the given state from teh global state
@@ -349,21 +350,21 @@ public:
      * @param state int representation of the binary unique state
      * @return float probability of |xxxxxx> where xxxxx is the state
      */
-    float state_probability(int state) const;
+    float state_probability(uint32_t state) const;
 
     /**
      * @brief Returns the number of qubits of the simulator
      * 
      * @return int number of qubits
      */
-    int qubit_count() const noexcept { return qubits_; }
+    uint32_t qubit_count() const noexcept { return qubits_; }
 
     /**
      * @brief Returns the number of unique states that can be measured from the global state
      * 
      * @return int number of states
      */
-    int state_count() const noexcept { return fast_pow2(qubits_);}
+    uint32_t state_count() const noexcept { return fast_pow2(qubits_);}
 
     /**
      * @brief Returns a const af::array& to the internal global state stored by the simulator
@@ -376,7 +377,7 @@ private:
     std::vector<QState> states_;
     af::array global_state_;
     QNoise noise_;
-    int qubits_;
+    uint32_t qubits_;
 };
 
 class QGate
@@ -407,28 +408,28 @@ public:
 class X : public QGate
 {
 public:
-    X(int target_qubit_) : target_qubit{target_qubit_} {}
+    X(uint32_t target_qubit_) : target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int target_qubit;
+    uint32_t target_qubit;
 };
 
 class Y : public QGate
 {
 public:
-    Y(int target_qubit_) : target_qubit{target_qubit_} {}
+    Y(uint32_t target_qubit_) : target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int target_qubit;
+    uint32_t target_qubit;
 };
 
 class Z : public QGate
 {
 public:
-    Z(int target_qubit_) : target_qubit{target_qubit_} {}
+    Z(uint32_t target_qubit_) : target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int target_qubit;
+    uint32_t target_qubit;
 };
 
 using Not = X;
@@ -436,75 +437,75 @@ using Not = X;
 class Hadamard : public QGate
 {
 public:
-    Hadamard(int target_qubit_) : target_qubit{target_qubit_} {}
+    Hadamard(uint32_t target_qubit_) : target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int target_qubit;
+    uint32_t target_qubit;
 };
 
 class Phase : public QGate
 {
 public:
-    Phase(int target_qubit_, float angle_) : target_qubit{target_qubit_}, angle{angle_} {}
+    Phase(uint32_t target_qubit_, float angle_) : target_qubit{target_qubit_}, angle{angle_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int target_qubit;
+    uint32_t target_qubit;
     float angle;
 };
 
 class Swap : public QGate
 {
 public:
-    Swap(int target_qubit_A_, int target_qubit_B_) : target_qubit_A{target_qubit_A_},
+    Swap(uint32_t target_qubit_A_, uint32_t target_qubit_B_) : target_qubit_A{target_qubit_A_},
                                                      target_qubit_B{target_qubit_B_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int target_qubit_A;
-    int target_qubit_B;
+    uint32_t target_qubit_A;
+    uint32_t target_qubit_B;
 };
 
 class Control_X : public QGate
 {
 public:
-    Control_X(int control_qubit_, int target_qubit_) : control_qubit{control_qubit_},
+    Control_X(uint32_t control_qubit_, uint32_t target_qubit_) : control_qubit{control_qubit_},
                                                        target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int control_qubit;
-    int target_qubit;
+    uint32_t control_qubit;
+    uint32_t target_qubit;
 };
 
 class Control_Y : public QGate
 {
 public:
-    Control_Y(int control_qubit_, int target_qubit_) : control_qubit{control_qubit_},
+    Control_Y(uint32_t control_qubit_, uint32_t target_qubit_) : control_qubit{control_qubit_},
                                                        target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int control_qubit;
-    int target_qubit;
+    uint32_t control_qubit;
+    uint32_t target_qubit;
 };
 
 class Control_Z : public QGate
 {
 public:
-    Control_Z(int control_qubit_, int target_qubit_) : control_qubit{control_qubit_},
+    Control_Z(uint32_t control_qubit_, uint32_t target_qubit_) : control_qubit{control_qubit_},
                                                        target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int control_qubit;
-    int target_qubit;
+    uint32_t control_qubit;
+    uint32_t target_qubit;
 };
 
 class Control_Hadamard : public QGate
 {
 public:
-    Control_Hadamard(int control_qubit_, int target_qubit_) : control_qubit{control_qubit_},
+    Control_Hadamard(uint32_t control_qubit_, uint32_t target_qubit_) : control_qubit{control_qubit_},
                                                               target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int control_qubit;
-    int target_qubit;
+    uint32_t control_qubit;
+    uint32_t target_qubit;
 };
 
 using Control_Not = Control_X;
@@ -513,38 +514,38 @@ using Xor = Control_X;
 class Control_Phase : public QGate
 {
 public:
-    Control_Phase(int control_qubit_, int target_qubit_, float angle_) : control_qubit{control_qubit_},
+    Control_Phase(uint32_t control_qubit_, uint32_t target_qubit_, float angle_) : control_qubit{control_qubit_},
                                                                          target_qubit{target_qubit_},
                                                                          angle{angle_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int control_qubit;
-    int target_qubit;
+    uint32_t control_qubit;
+    uint32_t target_qubit;
     float angle;
 };
 
 class Control_Swap : public QGate
 {
 public:
-    Control_Swap(int control_qubit_, int target_qubit_A_, int target_qubit_B_)
+    Control_Swap(uint32_t control_qubit_, uint32_t target_qubit_A_, uint32_t target_qubit_B_)
         : control_qubit{control_qubit_}, target_qubit_A{target_qubit_A_}, target_qubit_B{target_qubit_B_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int control_qubit;
-    int target_qubit_A;
-    int target_qubit_B;
+    uint32_t control_qubit;
+    uint32_t target_qubit_A;
+    uint32_t target_qubit_B;
 };
 
 class CControl_Not : public QGate
 {
 public:
-    CControl_Not(int control_qubit_A_, int control_qubit_B_, int target_qubit_)
+    CControl_Not(uint32_t control_qubit_A_, uint32_t control_qubit_B_, uint32_t target_qubit_)
         : control_qubit_A{control_qubit_A_}, control_qubit_B{control_qubit_B_}, target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int control_qubit_A;
-    int control_qubit_B;
-    int target_qubit;
+    uint32_t control_qubit_A;
+    uint32_t control_qubit_B;
+    uint32_t target_qubit;
 };
 
 using And = CControl_Not;
@@ -552,39 +553,39 @@ using And = CControl_Not;
 class Or : public QGate
 {
 public:
-    Or(int control_qubit_A_, int control_qubit_B_, int target_qubit_)
+    Or(uint32_t control_qubit_A_, uint32_t control_qubit_B_, uint32_t target_qubit_)
         : control_qubit_A{control_qubit_A_}, control_qubit_B{control_qubit_B_}, target_qubit{target_qubit_} {}
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
-    int control_qubit_A;
-    int control_qubit_B;
-    int target_qubit;
+    uint32_t control_qubit_A;
+    uint32_t control_qubit_B;
+    uint32_t target_qubit;
 };
 
 
 class CircuitGate : public QGate
 {
 public:
-    CircuitGate(const QCircuit& circuit_, int target_qubit_begin_, std::string name = "");
+    CircuitGate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name = "");
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
     af::array internal_circuit;
     std::string representation;
-    int qubit_count;
-    int target_qubit_begin;
+    uint32_t qubit_count;
+    uint32_t target_qubit_begin;
 };
 
 class ControlCircuitGate : public QGate
 {
 public:
-    ControlCircuitGate(const QCircuit& circuit_, int control_qubit_, int target_qubit_begin_, std::string name = "");
+    ControlCircuitGate(const QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name = "");
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
     af::array internal_circuit;
     std::string representation;
-    int qubit_count;
-    int control_qubit;
-    int target_qubit_begin;
+    uint32_t qubit_count;
+    uint32_t control_qubit;
+    uint32_t target_qubit_begin;
 };
 
 

@@ -33,10 +33,20 @@ void X_gate_test(int qubit_count, int test_count);
 void Y_gate_test(int qubit_count, int test_count);
 void Z_gate_test(int qubit_count, int test_count);
 void Phase_gate_test(int qubit_count, int test_count);
+void Hadamard_gate_test(int qubit_count, int test_count);
 void swap_gate_test(int  qubit_count, int test_count);
+void CX_gate_test(int qubit_count, int test_count);
+void CY_gate_test(int qcount, int repcount);
+void CZ_gate_test(int qcount, int repcount);
+void CPhase_gate_test(int qcount, int repcount);
+void CCNot_gate_test(int qcount, int repcount);
+void Or_gate_test(int qcount, int repcount);
 void circuit_gate_test(int qubit_count, int gate_qcount, int test_count);
 void profile_measure_all_test(int qubit_count, int test_count);
 void profile_measure_test(int qubit_count, int test_count);
+
+//Note New CCNot and Or gate are slighly slower when running AF_BACKEND_CPU,
+//TODO setup to check which impl to use
 
 int main(int argc, char** argv)
 {
@@ -53,7 +63,21 @@ int main(int argc, char** argv)
 
     //Z_gate_test(qcount, repcount);
 
-    Phase_gate_test(qcount, repcount);
+    //Phase_gate_test(qcount, repcount);
+
+    //Hadamard_gate_test(qcount, repcount);
+
+    //CX_gate_test(qcount, repcount);
+
+    //CY_gate_test(qcount, repcount);
+
+    //CZ_gate_test(qcount, repcount);
+
+    //CPhase_gate_test(qcount, repcount);
+
+    //CCNot_gate_test(qcount, repcount);
+
+    Or_gate_test(qcount, repcount);
 
     //circuit_gate_test(qcount, gateqcount, repcount);
 
@@ -151,6 +175,146 @@ void Phase_gate_test(int qubit_count, int test_count)
     profile(func1, test_count, "-- Test: New Phase gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 
     profile(func2, test_count, "-- Test: Old Phase gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void Hadamard_gate_test(int qubit_count, int test_count)
+{
+    aqs::QCircuit qc(qubit_count);
+
+    auto func1 = [&](){
+        qc << aqs::Hadamard(0);
+    };
+
+    auto func2 = [&]() {
+        qc << Hadamard_old(0);
+    };
+
+    profile(func1, test_count, "-- Test: New Hadamard gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, test_count, "-- Test: Old Hadamard gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void CX_gate_test(int qubit_count, int test_count)
+{
+    aqs::QCircuit qc(qubit_count);
+
+    uint32_t target = 0;
+    uint32_t control = qubit_count - 1;
+
+    auto func1 = [&](){
+        qc << aqs::Control_X(control, target);
+    };
+
+    auto func2 = [&]() {
+        qc << Control_X_old(control, target);
+    };
+
+    profile(func1, test_count, "-- Test: New ControlX gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, test_count, "-- Test: Old ControlX gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void CY_gate_test(int qubit_count, int test_count)
+{
+    aqs::QCircuit qc(qubit_count);
+
+    uint32_t target = 0;
+    uint32_t control = qubit_count - 1;
+
+    auto func1 = [&](){
+        qc << aqs::Control_Y(control, target);
+    };
+
+    auto func2 = [&]() {
+        qc << Control_Y_old(control, target);
+    };
+
+    profile(func1, test_count, "-- Test: New ControlY gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, test_count, "-- Test: Old ControlY gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void CZ_gate_test(int qubit_count, int test_count)
+{
+    aqs::QCircuit qc(qubit_count);
+
+    uint32_t target = 0;
+    uint32_t control = qubit_count - 1;
+
+    auto func1 = [&](){
+        qc << aqs::Control_Z(control, target);
+    };
+
+    auto func2 = [&]() {
+        qc << Control_Z_old(control, target);
+    };
+
+    profile(func1, test_count, "-- Test: New ControlZ gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, test_count, "-- Test: Old ControlZ gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void CPhase_gate_test(int qubit_count, int test_count)
+{
+    aqs::QCircuit qc(qubit_count);
+
+    uint32_t target = 0;
+    uint32_t control = qubit_count - 1;
+    float angle = aqs::pi / 4;
+
+    auto func1 = [&](){
+        qc << aqs::Control_Phase(control, target, angle);
+    };
+
+    auto func2 = [&]() {
+        qc << Control_Phase_old(control, target, angle);
+    };
+
+    profile(func1, test_count, "-- Test: New ControlPhase gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, test_count, "-- Test: Old ControlPhase gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void CCNot_gate_test(int qubit_count, int test_count)
+{
+    int controlA = 0;
+    int controlB = 1;
+    int target = qubit_count - 1;
+
+    aqs::QCircuit qc(qubit_count);
+
+    auto func1 = [&](){
+        qc << aqs::CControl_Not(controlA, controlB, target);
+    };
+
+    auto func2 = [&]() {
+        qc << CControl_Not_old(controlA, controlB, target);
+    };
+
+    profile(func1, test_count, "-- Test: New CControl Not gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, test_count, "-- Test: Old CControl Not gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void Or_gate_test(int qubit_count, int test_count)
+{
+    int controlA = 0;
+    int controlB = 1;
+    int target = qubit_count - 1;
+
+    aqs::QCircuit qc(qubit_count);
+
+    auto func1 = [&](){
+        qc << aqs::Or(controlA, controlB, target);
+    };
+
+    auto func2 = [&]() {
+        qc << Or_old(controlA, controlB, target);
+    };
+
+    profile(func1, test_count, "-- Test: New Or gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, test_count, "-- Test: Old Or gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
 void circuit_gate_test(int qubit_count, int gate_qcount, int test_count)

@@ -459,36 +459,36 @@ public:
     aqs::QCircuit& operator()(aqs::QCircuit& qc) const override
     {
         const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
-    if (control_qubit_A >= qubits || control_qubit_A < 0)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (control_qubit_B >= qubits || control_qubit_B < 0)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (target_qubit >= qubits || target_qubit < 0)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        const int states = qc.state_count();
+        if (control_qubit_A >= qubits || control_qubit_A < 0)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        if (control_qubit_B >= qubits || control_qubit_B < 0)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        if (target_qubit >= qubits || target_qubit < 0)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
-    std::vector<int> cols(states), rows(states + 1);
+        std::vector<int> cols(states), rows(states + 1);
 
-    int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
-    int target_mask = 1 << (qubits - 1 - target_qubit);
+        int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
+        int target_mask = 1 << (qubits - 1 - target_qubit);
 
-    //Generate the sparse matrix entries
-    rows[0] = 0;
-    for (int i = 0; i < states; ++i)
-    {
-        rows[i + 1] = i + 1;
-        cols[i] = (i & control_mask) ? i ^ target_mask : i;
-    }
+        //Generate the sparse matrix entries
+        rows[0] = 0;
+        for (int i = 0; i < states; ++i)
+        {
+            rows[i + 1] = i + 1;
+            cols[i] = (i & control_mask) ? i ^ target_mask : i;
+        }
 
-    //Generate the operation matrix
-    af::array or_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.0f , 0.0f }, states),
-                                     af::array(states + 1, rows.data()), af::array(states, cols.data()));
+        //Generate the operation matrix
+        af::array or_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.0f , 0.0f }, states),
+                                        af::array(states + 1, rows.data()), af::array(states, cols.data()));
 
-    //Update the circuit matrix by matrix multiplication
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(or_matrix, circuit);
+        //Update the circuit matrix by matrix multiplication
+        auto& circuit = qc.circuit();
+        circuit = af::matmul(or_matrix, circuit);
 
-    return qc;
+        return qc;
     }
 
     std::string to_string() const override { return "Or,2,1:" + std::to_string(control_qubit_A) + "," + std::to_string(control_qubit_B) +
@@ -496,4 +496,83 @@ public:
     uint32_t control_qubit_A{};
     uint32_t control_qubit_B{};
     uint32_t target_qubit{};
+};
+
+class Control_Swap_old : public aqs::QGate
+{
+public:
+    Control_Swap_old(uint32_t control, uint32_t targetA, uint32_t targetB) : control_qubit{control} , target_qubit_A{targetA} ,
+        target_qubit_B{targetB} {}
+    aqs::QCircuit& operator()(aqs::QCircuit& qc) const override
+    {
+        const int qubits = qc.qubit_count();
+        const int states = qc.state_count();
+        if (qubits < 3)
+            throw std::domain_error{"Gate not supported for given circuit"};
+        if (target_qubit_A >= qubits || target_qubit_A < 0)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        if (target_qubit_B >= qubits || target_qubit_B < 0)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        if (control_qubit >= qubits || control_qubit < 0)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+
+        std::vector<int> cols(states), rows(states + 1);
+
+        int control_mask = 1 << (qubits - 1 - control_qubit);
+        int target_maskA = 1 << (qubits - 1 - target_qubit_A);
+        int target_maskB = 1 << (qubits - 1 - target_qubit_B);
+        int target_mask = target_maskA | target_maskB;
+
+        rows[0] = 0;
+        for (int i = 0; i < states; ++i)
+        {
+            rows[i + 1] = i + 1;
+            if ((i & control_mask) && ((i & target_mask) == target_maskA || (i & target_mask) == target_maskB))
+            {
+                cols[i] = (i ^ target_maskA) ^ target_maskB;
+            }
+            else
+                cols[i] = i;
+        }
+
+        af::array cswap_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.0f , 0.0f }, states),
+                                af::array(states + 1, rows.data()), af::array(states, cols.data()));
+
+        auto& circuit = qc.circuit();
+        circuit = af::matmul(cswap_matrix, circuit);
+
+        return qc;
+    }
+
+    std::string to_string() const override { return "CSwap,1,2:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit_A) +
+                                             "," + std::to_string(target_qubit_B) + ";"; }
+    uint32_t control_qubit{};
+    uint32_t target_qubit_A{};
+    uint32_t target_qubit_B{};
+};
+
+class Control_Hadamard_old : public aqs::QGate
+{
+public:
+    Control_Hadamard_old(uint32_t control, uint32_t target) : control_qubit{control} , target_qubit{target} {}
+    aqs::QCircuit& operator()(aqs::QCircuit& qc) const override
+    {
+        const int qubits = qc.qubit_count();
+        if (qubits < 2)
+            throw std::domain_error{"Gate not supported for given simulation"};
+        if (control_qubit < 0 || control_qubit >= qubits)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        if (target_qubit < 0 || target_qubit >= qubits)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+
+        aqs::QCircuit h(1);
+        h << aqs::Hadamard{0};
+
+        qc << aqs::ControlCircuitGate{h, control_qubit, target_qubit};
+
+        return qc;
+    }
+    std::string to_string() const override { return "CHadamard,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";"; }
+    uint32_t target_qubit{};
+    uint32_t control_qubit{};
 };

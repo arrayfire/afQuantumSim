@@ -423,7 +423,7 @@ std::string Z::to_string() const
     return "Z," + std::to_string(target_qubit) + ";";
 }
 
-static QCircuit& hadamard_op_af_cpu(QCircuit& qc, uint32_t target_qubit)
+static QCircuit& hadamard_gate_af_cpu(QCircuit& qc, uint32_t target_qubit)
 {
     const int qubits = qc.qubit_count();
     const int states = qc.state_count();
@@ -451,7 +451,7 @@ static QCircuit& hadamard_op_af_cpu(QCircuit& qc, uint32_t target_qubit)
     return qc;
 }
 
-static QCircuit& hadamard_op_af_opencl(QCircuit& qc, uint32_t target_qubit)
+static QCircuit& hadamard_gate_af_opencl(QCircuit& qc, uint32_t target_qubit)
 {
     const int qubits = qc.qubit_count();
 
@@ -475,11 +475,11 @@ QCircuit& Hadamard::operator()(QCircuit& qc) const
     switch (af::getActiveBackend())
     {
     case AF_BACKEND_CPU:
-        return hadamard_op_af_cpu(qc, target_qubit);
+        return hadamard_gate_af_cpu(qc, target_qubit);
     case AF_BACKEND_OPENCL:
-        return hadamard_op_af_opencl(qc, target_qubit);
+        return hadamard_gate_af_opencl(qc, target_qubit);
     default:
-        return hadamard_op_af_opencl(qc, target_qubit);
+        return hadamard_gate_af_opencl(qc, target_qubit);
     }
 }
 
@@ -535,6 +535,8 @@ QCircuit& Swap::operator()(QCircuit& qc) const
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
     if (target_qubit_B >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (target_qubit_A == target_qubit_B)
+        throw std::invalid_argument{"Cannot use the swap gate on the same target qubits"};
 
     int32_t posA = qubits - 1 - target_qubit_A;
     int32_t posB = qubits - 1 - target_qubit_B;
@@ -725,18 +727,10 @@ std::string Control_Phase::to_string() const
         return "CPhase,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
-QCircuit& Control_Swap::operator()(QCircuit& qc) const
+static QCircuit& cswap_gate_af_cpu(QCircuit& qc, uint32_t control_qubit, uint32_t target_qubit_A, uint32_t target_qubit_B)
 {
     const int qubits = qc.qubit_count();
     const int states = qc.state_count();
-    if (qubits < 3)
-        throw std::domain_error{"Gate not supported for given circuit"};
-    if (target_qubit_A >= qubits || target_qubit_A < 0)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (target_qubit_B >= qubits || target_qubit_B < 0)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (control_qubit >= qubits || control_qubit < 0)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
     std::vector<int> cols(states), rows(states + 1);
 
@@ -766,6 +760,66 @@ QCircuit& Control_Swap::operator()(QCircuit& qc) const
     return qc;
 }
 
+static QCircuit& cswap_gate_af_opencl(QCircuit& qc, uint32_t control_qubit, uint32_t target_qubit_A, uint32_t target_qubit_B)
+{
+    const int qubits = qc.qubit_count();
+    const int states = qc.state_count();
+
+    int32_t posA = qubits - 1 - target_qubit_A;
+    int32_t posB = qubits - 1 - target_qubit_B;
+
+    int control = 1 << (qubits - control_qubit - 1);
+    int targetA = 1 << posA;
+    int targetB = 1 << posB;
+
+    auto iota = af::iota(states, 1, s32);
+    auto row_indices = af::iota(states + 1, 1, s32);
+
+    // Generate column indices that should be swapped (swap the bits in the states of qA and qB)
+    auto temp = (iota >> posA) ^ (iota >> posB);
+    temp = temp & 1;
+    auto replace_vals = iota ^ ((temp << posA) | (temp << posB));
+
+    auto column_indices = iota;
+    af::replace(column_indices, (iota & control) != control, replace_vals);
+
+    auto matrix_cswap = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
+
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(matrix_cswap, circuit);
+
+    return qc;
+}
+
+QCircuit& Control_Swap::operator()(QCircuit& qc) const
+{
+    const int qubits = qc.qubit_count();
+    const int states = qc.state_count();
+
+    if (qubits < 3)
+        throw std::domain_error{"Gate not supported for given circuit"};
+    if (target_qubit_A >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (target_qubit_B >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (control_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (control_qubit == target_qubit_A || control_qubit == target_qubit_B)
+        throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
+    if (target_qubit_A == target_qubit_B)
+        throw std::invalid_argument{"Cannot use the swap gate on the same target qubits"};
+
+    switch (af::getActiveBackend())
+    {
+    case AF_BACKEND_CPU:
+        return cswap_gate_af_cpu(qc, control_qubit, target_qubit_A, target_qubit_B);
+    case AF_BACKEND_OPENCL:
+        return cswap_gate_af_opencl(qc, control_qubit, target_qubit_A, target_qubit_B);
+    default:
+        return cswap_gate_af_opencl(qc, control_qubit, target_qubit_A, target_qubit_B);
+    }
+}
+
 std::string Control_Swap::to_string() const
 {
     return "CSwap" + std::to_string(control_qubit) + "," + std::to_string(target_qubit_A) + 
@@ -775,17 +829,52 @@ std::string Control_Swap::to_string() const
 QCircuit& Control_Hadamard::operator()(QCircuit& qc) const
 {
     const int qubits = qc.qubit_count();
+    const int states = qc.state_count();
     if (qubits < 2)
         throw std::domain_error{"Gate not supported for given simulation"};
-    if (control_qubit < 0 || control_qubit >= qubits)
+    if (control_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (target_qubit < 0 || target_qubit >= qubits)
+    if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (control_qubit == target_qubit)
+        throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    QCircuit h(1);
-    h << Hadamard(0);
+    const int value_mask = (1 << (qubits - target_qubit)) | 1;
+    const int control_index_mask = 1 << (qubits - control_qubit);
+    const int index_mask = ~(1 << (qubits - target_qubit - 1));
 
-    qc << ControlCircuitGate(h, control_qubit, target_qubit);
+    auto iota = af::iota(states, 1, s32);
+    auto row_indices = af::iota(states + 1, 1, s32) * 2;
+    auto column_indices = af::resize(iota, states * 2, 1, AF_INTERP_LOWER) & index_mask;
+
+    const int off[] = {
+        0, 1 << (qubits - target_qubit - 1)
+    };
+
+    auto offset = af::tile(af::array(2, off), states);
+    column_indices += offset;
+
+    auto iota2 = af::iota(states * 2, 1, s32);
+    auto control_indices = (iota2 & control_index_mask).as(b8);
+    af::replace(column_indices, control_indices, af::resize(iota, states * 2, 1, AF_INTERP_NEAREST));
+
+    const float sqrt2 = 0.70710678118f;
+    const int val_mask = (1 << (qubits - target_qubit)) | 1;
+
+    const af::cfloat identity_vals[] = {
+        { 1.f , 0.f } , { 0.f , 0.f }
+    };
+
+    auto values = af::tile(af::array(2, identity_vals), states);
+    auto value_indices = ((iota2 & value_mask) ^ value_mask).as(b8);
+
+    af::replace(values, !(control_indices &&  value_indices), af::constant(af::cfloat{ sqrt2, 0.f }, states * 2));
+    af::replace(values, !(control_indices && !value_indices), af::constant(af::cfloat{ -sqrt2, 0.f }, states * 2));
+
+    auto matrix_chadamard = af::sparse(states, states, values, row_indices, column_indices);
+
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(matrix_chadamard, circuit);
 
     return qc;
 }
@@ -795,21 +884,39 @@ std::string Control_Hadamard::to_string() const
     return "CH," + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
-QCircuit& CControl_Not::operator()(QCircuit& qc) const
+static QCircuit& ccnot_gate_af_cpu(QCircuit& qc, int control_qubit_A, int control_qubit_B, int target_qubit)
 {
     const int qubits = qc.qubit_count();
     const int states = qc.state_count();
 
-    if (qubits < 3)
-        throw std::domain_error{"Gate not supported for given simulation"};
-    if (control_qubit_A >= qubits)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (control_qubit_B >= qubits)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (target_qubit >= qubits)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (control_qubit_A == target_qubit || control_qubit_B == target_qubit)
-        throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
+    std::vector<int> cols(states), rows(states + 1);
+
+    int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
+    int target_mask = 1 << (qubits - 1 - target_qubit);
+
+    //Generate the matrix entry indices
+    rows[0] = 0;
+    for (int i = 0; i < states; ++i)
+    {
+        rows[i + 1] = i + 1;
+        cols[i] = (i & control_mask) == control_mask ? (i ^ target_mask) : i;
+    }
+
+    //All entries are 1, generate the operation matrix 
+    af::array ccnot_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.0f , 0.0f }, states),
+                                        af::array(states + 1, rows.data()), af::array(states, cols.data()));
+
+    //Update the circuit matrix by matrix multiplication
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(ccnot_matrix, circuit);
+
+    return qc;
+}
+
+static QCircuit& ccnot_gate_af_opencl(QCircuit& qc, int control_qubit_A, int control_qubit_B, int target_qubit)
+{
+    const int qubits = qc.qubit_count();
+    const int states = qc.state_count();
 
     int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
     int target_mask = 1 << (qubits - 1 - target_qubit);
@@ -828,10 +935,88 @@ QCircuit& CControl_Not::operator()(QCircuit& qc) const
     return qc;
 }
 
+QCircuit& CControl_Not::operator()(QCircuit& qc) const
+{
+    const int qubits = qc.qubit_count();
+    const int states = qc.state_count();
+
+    if (qubits < 3)
+        throw std::domain_error{"Gate not supported for given simulation"};
+    if (control_qubit_A >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (control_qubit_B >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (target_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (control_qubit_A == target_qubit || control_qubit_B == target_qubit)
+        throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
+
+    switch (af::getActiveBackend())
+    {
+    case AF_BACKEND_CPU:
+        return ccnot_gate_af_cpu(qc, control_qubit_A, control_qubit_B, target_qubit);
+    case AF_BACKEND_OPENCL:
+        return ccnot_gate_af_opencl(qc, control_qubit_A, control_qubit_B, target_qubit);
+    default:
+        return ccnot_gate_af_opencl(qc, control_qubit_A, control_qubit_B, target_qubit);
+    }
+}
+
 std::string CControl_Not::to_string() const
 {
     return "CCX,2,1:" + std::to_string(control_qubit_A) + "," + std::to_string(control_qubit_B) + 
             "," + std::to_string(target_qubit) + ";";
+}
+
+static QCircuit& or_gate_af_cpu(QCircuit& qc, int control_qubit_A, int control_qubit_B, int target_qubit)
+{
+    const int qubits = qc.qubit_count();
+    const int states = qc.state_count();
+
+    std::vector<int> cols(states), rows(states + 1);
+
+    int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
+    int target_mask = 1 << (qubits - 1 - target_qubit);
+
+    //Generate the sparse matrix entries
+    rows[0] = 0;
+    for (int i = 0; i < states; ++i)
+    {
+        rows[i + 1] = i + 1;
+        cols[i] = (i & control_mask) ? i ^ target_mask : i;
+    }
+
+    //Generate the operation matrix
+    af::array or_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.0f , 0.0f }, states),
+                                     af::array(states + 1, rows.data()), af::array(states, cols.data()));
+
+    //Update the circuit matrix by matrix multiplication
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(or_matrix, circuit);
+
+    return qc;
+}
+
+static QCircuit& or_gate_af_opencl(QCircuit& qc, int control_qubit_A, int control_qubit_B, int target_qubit)
+{
+    const int qubits = qc.qubit_count();
+    const int states = qc.state_count();
+
+    int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
+    int target_mask = 1 << (qubits - 1 - target_qubit);
+
+    auto iota = af::iota(states, 1, s32);
+    auto row_indices = af::iota(states + 1, 1, s32);
+    auto column_indices = iota;
+    af::replace(column_indices, ((iota & control_mask) == 0).as(b8), iota ^ target_mask);
+
+    auto ccnot_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
+
+    //Update the circuit matrix by matrix multiplication
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(ccnot_matrix, circuit);
+
+    return qc;
 }
 
 QCircuit& Or::operator()(QCircuit& qc) const
@@ -850,21 +1035,15 @@ QCircuit& Or::operator()(QCircuit& qc) const
     if (control_qubit_A == target_qubit || control_qubit_B == target_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
-    int target_mask = 1 << (qubits - 1 - target_qubit);
-
-    auto iota = af::iota(states, 1, s32);
-    auto row_indices = af::iota(states + 1, 1, s32);
-    auto column_indices = iota;
-    af::replace(column_indices, ((iota & control_mask) == 0).as(b8), iota ^ target_mask);
-
-    auto ccnot_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
-
-    //Update the circuit matrix by matrix multiplication
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(ccnot_matrix, circuit);
-
-    return qc;
+    switch (af::getActiveBackend())
+    {
+    case AF_BACKEND_CPU:
+        return or_gate_af_cpu(qc, control_qubit_A, control_qubit_B, target_qubit);
+    case AF_BACKEND_OPENCL:
+        return or_gate_af_opencl(qc, control_qubit_A, control_qubit_B, target_qubit);
+    default:
+        return or_gate_af_opencl(qc, control_qubit_A, control_qubit_B, target_qubit);
+    }
 }
 
 std::string Or::to_string() const

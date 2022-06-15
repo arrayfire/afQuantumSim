@@ -132,3 +132,30 @@ std::size_t utf8str_len(std::string str)
     while (*s) len += (*s++ & 0xc0) != 0x80;
     return len;
 }
+
+af::array insert_bits(const af::array& current, const af::array& insert, const af::array& position, const af::array& offset, size_t array_length)
+{
+    if (current.dims()[0] != array_length || 
+        insert.dims()[0] != array_length || position.dims()[0] != array_length || offset.dims()[0] != array_length)
+        throw af::exception{"Different array lengths"};
+
+    af::array least_mask = ((af::constant(1, array_length, s32) << position) - 1);
+    af::array least = current & least_mask;
+    af::array temp = insert << position;
+    temp = temp | least;
+
+    af::array top_mask = ~least_mask;
+    af::array top = (current & top_mask) << (position + offset);
+    temp = temp | top;
+
+    return temp;
+}
+
+af::array gen_index(uint32_t gate_qubit_begin, uint32_t gate_qubit_count, uint32_t circuit_qubit_count, const af::array& values, const af::array& indices, size_t array_length)
+{
+    if (values.dims()[0] != array_length || indices.dims()[0] != array_length)
+        throw af::exception{"Different array lengths"};
+    return insert_bits(indices, values,
+                    af::constant(circuit_qubit_count - gate_qubit_count - gate_qubit_begin, array_length, s32),
+                    af::constant(gate_qubit_count, array_length, s32), array_length);
+}

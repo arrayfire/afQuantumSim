@@ -52,7 +52,7 @@ void print_profile(const std::array<int, 2>& profile)
     std::cout << std::setprecision(7) << std::defaultfloat << std::noshowpos;
 }
 
-void print_profile(const std::vector<int>& profile)
+void print_profile(const std::vector<uint32_t>& profile)
 {
     int qubits = fast_log2(profile.size());
     int rep_count = std::accumulate(profile.begin(), profile.end(), 0);

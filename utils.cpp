@@ -145,17 +145,20 @@ af::array insert_bits(const af::array& current, const af::array& insert, const a
     temp = temp | least;
 
     af::array top_mask = ~least_mask;
-    af::array top = (current & top_mask) << (position + offset);
+    af::array top = (current & top_mask) << offset;
     temp = temp | top;
 
     return temp;
 }
 
-af::array gen_index(uint32_t gate_qubit_begin, uint32_t gate_qubit_count, uint32_t circuit_qubit_count, const af::array& values, const af::array& indices, size_t array_length)
+af::array gen_index(uint32_t gate_qubit_begin, uint32_t gate_qubit_count, uint32_t circuit_qubit_count, const af::array& values, const af::array& indices,
+                    size_t array_length)
 {
     if (values.dims()[0] != array_length || indices.dims()[0] != array_length)
         throw af::exception{"Different array lengths"};
-    return insert_bits(indices, values,
-                    af::constant(circuit_qubit_count - gate_qubit_count - gate_qubit_begin, array_length, s32),
-                    af::constant(gate_qubit_count, array_length, s32), array_length);
+    return insert_bits(indices,
+                       values,
+                       af::constant(circuit_qubit_count - gate_qubit_count - gate_qubit_begin, array_length, s32),
+                       af::constant(gate_qubit_count, array_length, s32),
+                       array_length);
 }

@@ -10,9 +10,10 @@
 
 #include <arrayfire.h>
 
-#include <vector>
 #include <array>
+#include <cassert>
 #include <tuple>
+#include <vector>
 
 #include "utils.h"
 
@@ -561,7 +562,6 @@ public:
     uint32_t control_qubit_B;
     uint32_t target_qubit;
 };
-
 
 class CircuitGate : public QGate
 {

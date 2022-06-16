@@ -38,14 +38,14 @@ namespace aqs
      * 
      * @param profile profile of the measurements done on a qubit
      */
-    void print_profile(const std::array<int, 2>& profile);
+    void print_profile(const std::array<uint32_t, 2>& profile);
 
     /**
      * @brief Prints the given global state profile to the stdout stream
      * 
      * @param profile profile of the measurements done on the quantum simulation global state
      */
-    void print_profile(const std::vector<int>& profile);
+    void print_profile(const std::vector<uint32_t>& profile);
 
     /**
      * @brief Generates a text image using the circuit passed and initial states stored in simulator

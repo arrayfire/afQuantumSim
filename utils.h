@@ -24,3 +24,6 @@ int64_t gcd(int64_t a, int64_t b);
 
 static inline uint32_t fast_pow2(uint32_t pow) { return 1 << pow; }
 static inline uint32_t fast_log2(uint32_t val) { int counter = -(val!=0); for(;val;counter++) val >>=1; return counter; }
+
+af::array insert_bits(const af::array& current, const af::array& insert, const af::array& position, const af::array& offset, size_t array_length);
+af::array gen_index(uint32_t gate_qubit_begin, uint32_t gate_qubit_count, uint32_t circuit_qubit_count, const af::array& values, const af::array& indices, size_t array_length);

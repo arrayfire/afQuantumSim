@@ -1,3 +1,11 @@
+/*******************************************************
+ * Copyright (c) 2022, ArrayFire
+ * All rights reserved.
+ *
+ * This file is distributed under 3-clause BSD license.
+ * The complete license agreement can be obtained at:
+ * http://arrayfire.com/licenses/BSD-3-Clause
+ ********************************************************/
 #pragma once
 
 #include "quantum.h"
@@ -659,4 +667,104 @@ public:
     std::string representation;
     uint32_t qubit_count;
     uint32_t target_qubit_begin;
+};
+
+class ControlCircuitGate_old : public aqs::QGate
+{
+public:
+    ControlCircuitGate_old(const aqs::QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name = "")
+        : internal_circuit{circuit_.circuit()}, qubit_count{circuit_.qubit_count()}, target_qubit_begin{target_qubit_begin_},
+            control_qubit{control_qubit_} , representation{name} {}
+    aqs::QCircuit& operator()(aqs::QCircuit& qc) const override
+    {
+        const int qubits = qc.qubit_count();
+        const int states = qc.state_count();
+        const int state_count = fast_pow2(qubit_count);
+
+        if (control_qubit >= qubits || control_qubit < 0)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        if (target_qubit_begin >= qubits || target_qubit_begin < 0)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        if (target_qubit_begin + qubit_count > qubits)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        if (target_qubit_begin <= control_qubit && control_qubit < target_qubit_begin + qubit_count)
+            throw std::out_of_range{"Cannot add gate at the given qubit position"};
+
+        //Store circuit array in the host
+        af::dim4 dims = internal_circuit.dims();
+        std::vector<af::cfloat> vals(dims[0] * dims[1]);
+        internal_circuit.host(vals.data());
+
+        // Inserts a given bit to the given value at the given position
+        // e.g. insert_bit(5, 1, 1) 5 => b101 = b1011 = 11
+        //                                 ^ 
+        //                                 1 
+        auto insert_bit = [](int value, bool bit, int position) {
+            int temp = value & ~ ((1 << position) - 1);
+            temp <<= 1;
+            temp &= ~(1 << position);
+            temp |= (bit ? 1 : 0) << position;
+            temp |= value & ((1 << position) - 1);
+            return temp;
+        };
+
+        //Generates the index of the position of the element in the larget operation circuit matrix from the target qubits of the circuit,
+        //the control qubit and the current index being probed of the input circuit matrix
+        auto gen_index = [insert_bit](int control, int targets, int target_count, int target_value, int qubit_count, int ii) {
+            int index = ii;
+            if (control < targets)
+            {
+                index = insert_bit(index, 1, qubit_count - control - 1 - target_count);
+                for (int i = 0; i < target_count; ++i)
+                    index = insert_bit(index, target_value & (1 << (target_count - 1 - i)), qubit_count - target_count - targets);
+            }
+            else
+            {
+                for (int i = 0; i < target_count; ++i)
+                    index = insert_bit(index, target_value & (1 << (target_count - 1 - i)), qubit_count - target_count - targets - 1);
+                index = insert_bit(index, 1, qubit_count - control - 1);
+            }
+            return index;
+        };
+
+        //Create a temporary storage for the operation matrix
+        int rem_count = 1 << (qubits - 1 - qubit_count);
+        std::vector<af::cfloat> out_temp;
+        out_temp.resize(states * states);
+
+        //Generate a identity matrix
+        for (int i = 0; i < states; ++i)
+            out_temp[i * states + i] = 1.0f;
+
+        //Fill all the entries with the correct values
+        for (int i = 0; i < rem_count; ++i)
+        {
+            for (int m = 0; m < state_count; ++m)
+            {
+                int ii = gen_index(control_qubit, target_qubit_begin, qubit_count, m, qubits, i);
+                for (int n = 0; n < state_count; ++n)
+                {
+                    int jj = gen_index(control_qubit, target_qubit_begin, qubit_count, n, qubits, i);
+
+                    //Copy the entries from the input circuit to the correct positions
+                    out_temp[ii * states + jj] = vals[m * state_count + n];
+                }
+            }
+        }
+
+        //Generate the operation matrix
+        af::array gate_mat = af::array(states, states, out_temp.data());
+
+        //Update the circuit matrix
+        auto& circuit = qc.circuit();
+        circuit = af::matmul(gate_mat, circuit);
+
+        return qc;
+    }
+    std::string to_string() const override { return representation; }
+    af::array internal_circuit;
+    std::string representation;
+    uint32_t qubit_count;
+    uint32_t target_qubit_begin;
+    uint32_t control_qubit;
 };

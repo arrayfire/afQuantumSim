@@ -13,11 +13,11 @@
 
 #include "stress_test.h"
 
-using sys_clock = std::chrono::high_resolution_clock;
 
 template<typename F>
 void profile(F func, int test_count, const std::string& heading)
 {
+    using sys_clock = std::chrono::high_resolution_clock;
     af::sync();
     auto begin = sys_clock::now();
     for (int i = 0; i < test_count; ++i)
@@ -48,18 +48,28 @@ void Or_gate_test(int qcount, int repcount);
 void CSwap_gate_test(int qcount, int repcount);
 void CHadamard_gate_test(int qubit_count, int test_count);
 void CircuitGate_test(int qubit_count, int gate_qcount, int test_count);
+void ControlCircuitGate_test(int qubit_count, int gate_qcount, int test_count);
 void circuit_gate_test(int qubit_count, int gate_qcount, int test_count);
 void profile_measure_all_test(int qubit_count, int test_count);
 void profile_measure_test(int qubit_count, int test_count);
+void tensor_product_test(int size, int test_count);
+
+af::array old_tensor(const af::array&, const af::array&);
 
 int main(int argc, char** argv)
 {
     aqs::initialize(argc, argv);
     std::cout << "\n";
 
-    int repcount = 100;
+    int repcount = 1000;
     int qcount = 10;
-    int gateqcount = 3;
+    int gateqcount = 8;
+
+    int size = 50;
+
+    tensor_product_test(size, repcount);
+
+    ControlCircuitGate_test(qcount, gateqcount, repcount);
 
     X_gate_test(qcount, repcount);
 
@@ -397,8 +407,6 @@ void CHadamard_gate_test(int qubit_count, int test_count)
 
 void CircuitGate_test(int qubit_count, int gate_qcount, int test_count)
 {
-    int controlA = 0;
-    int controlB = 1;
     int target = qubit_count - 1;
 
     aqs::QCircuit qc(qubit_count);
@@ -420,6 +428,32 @@ void CircuitGate_test(int qubit_count, int gate_qcount, int test_count)
     profile(func1, test_count, "-- Test: New CircuitGate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
     qc.reset_circuit();
     profile(func2, test_count, "-- Test: Old CircuitGate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void ControlCircuitGate_test(int qubit_count, int gate_qcount, int test_count)
+{
+    int control = 0;
+    int target = qubit_count - gate_qcount;
+
+    aqs::QCircuit qc(qubit_count);
+    aqs::QCircuit gate(gate_qcount);
+
+    for (int i = 0; i < gate_qcount; ++i)
+        gate << aqs::Hadamard(i);
+
+    auto func1 = [&](){
+        qc << aqs::ControlCircuitGate(gate, control, target);
+        qc.circuit().eval();
+    };
+
+    auto func2 = [&](){
+        qc << ControlCircuitGate_old(gate, control, target);
+        qc.circuit().eval();
+    };
+
+    profile(func1, test_count, "-- Test: New ControlCircuitGate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+    qc.reset_circuit();
+    profile(func2, test_count, "-- Test: Old ControlCircuitGate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
 void circuit_gate_test(int qubit_count, int gate_qcount, int test_count)
@@ -479,4 +513,38 @@ void profile_measure_test(int qubit_count, int test_count)
     profile(func1, 1, "-- Test: New profile func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 
     profile(func2, 1, "-- Test: Old profile func for circuit of " + std::to_string(qubit_count) + " qubits  --");
+}
+
+void tensor_product_test(int size, int test_count)
+{
+    af::array a = af::randu(size, size, f32);
+    af::array b = af::randu(size, size, f32);
+
+    auto func1 = [&](){
+        auto res = tensor_product(a, b);
+        res.eval();
+    };
+
+    auto func2 = [&](){
+        auto res = old_tensor(a, b);
+        res.eval();
+    };
+
+    profile(func1, test_count, "-- Test: New tensor product for matrices of size " + std::to_string(size) + " --");
+
+    profile(func2, test_count, "-- Test: Old tensor product for matrices of size " + std::to_string(size) + " --");
+}
+
+af::array old_tensor(const af::array& mat1, const af::array& mat2)
+{
+    af::dim4 dims1 = mat1.dims();
+    af::dim4 dims2 = mat2.dims();
+
+    if (mat1.type() != mat2.type() || dims1[2] != 1 || dims1[3] != 1 || dims2[2] != 1 || dims2[3] != 1)
+        throw af::exception();
+
+    af::array out = af::tile(mat2, dims1[0], dims1[1]);
+    af::array resized_mat1 = af::resize(dims2[0], dims2[1], mat1, AF_INTERP_LOWER);
+
+    return out *= resized_mat1;
 }

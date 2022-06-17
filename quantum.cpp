@@ -11,8 +11,6 @@
 
 #include <random>
 #include <stdexcept>
-#include <iostream>
-#include <iomanip>
 
 /*
     Pauli X matrix
@@ -425,33 +423,6 @@ std::string Z::to_string() const
 
 QCircuit& Hadamard::operator()(QCircuit& qc) const
 {
-    // const int qubits = qc.qubit_count();
-    // const int states = qc.state_count();
-    // if (target_qubit >= qubits)
-    //     throw std::out_of_range{"Cannot add gate at the given qubit position"};
-
-    // const int index_mask = ~(1 << (qubits - target_qubit - 1));
-    // auto row_indices = af::iota(states + 1, 1, s32) * 2;
-    // auto col_indices = af::resize(af::iota(states, 1, s32), states * 2, 1, AF_INTERP_LOWER) & index_mask;
-    // const int off[] = {
-    //     0, 1 << (qubits - target_qubit - 1)
-    // };
-    // auto offset = af::tile(af::array(2, off), states);
-    // col_indices += offset;
-
-    // const float sqrt2 = 0.70710678118f;
-    // const int val_mask = (1 << (qubits - target_qubit)) | 1;
-    // auto values = af::constant(af::cfloat{ sqrt2 , 0.f }, states * 2);
-    // auto temp = ((af::iota(states * 2, 1, s32) & val_mask) ^ val_mask).as(b8);
-    // af::replace(values, temp, af::constant(af::cfloat{ -sqrt2 , 0.f }, states * 2)); 
-
-    // auto matrix_hadamard = af::sparse(states, states, values, row_indices, col_indices);
-
-    // auto& circuit = qc.circuit();
-    // circuit = af::matmul(matrix_hadamard, circuit);
-
-    // return qc;
-
     const int qubits = qc.qubit_count();
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
@@ -794,16 +765,30 @@ QCircuit& Control_Swap::operator()(QCircuit& qc) const
     if (target_qubit_A == target_qubit_B)
         throw std::invalid_argument{"Cannot use the swap gate on the same target qubits"};
 
-    //switch (af::getActiveBackend())
-    //{
-    //case AF_BACKEND_CPU:
-    //    return cswap_gate_af_cpu(qc, control_qubit, target_qubit_A, target_qubit_B);
-    //case AF_BACKEND_OPENCL:
-    //    return cswap_gate_af_opencl(qc, control_qubit, target_qubit_A, target_qubit_B);
-    //default:
-    //    return cswap_gate_af_opencl(qc, control_qubit, target_qubit_A, target_qubit_B);
-    //}
-    return cswap_gate_af_cpu(qc, control_qubit, target_qubit_A, target_qubit_B);
+    int32_t posA = qubits - 1 - target_qubit_A;
+    int32_t posB = qubits - 1 - target_qubit_B;
+
+    int control = 1 << (qubits - control_qubit - 1);
+    int targetA = 1 << posA;
+    int targetB = 1 << posB;
+
+    auto iota = af::iota(states, 1, s32);
+    auto row_indices = af::iota(states + 1, 1, s32);
+
+    // Generate column indices that should be swapped (swap the bits in the states of qA and qB)
+    auto temp = (iota >> posA) ^ (iota >> posB);
+    temp = temp & 1;
+    auto replace_vals = iota ^ ((temp << posA) | (temp << posB));
+
+    auto column_indices = iota;
+    af::replace(column_indices, (iota & control) != control, replace_vals);
+
+    auto matrix_cswap = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
+
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(matrix_cswap, circuit);
+
+    return qc;
 }
 
 std::string Control_Swap::to_string() const
@@ -831,7 +816,9 @@ QCircuit& Control_Hadamard::operator()(QCircuit& qc) const
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32) * 2;
-    auto column_indices = af::resize(iota, states * 2, 1, AF_INTERP_LOWER) & index_mask;
+    //auto column_indices = af::resize(iota, states * 2, 1, AF_INTERP_LOWER) & index_mask;
+    auto resized_iota = af::flat(af::tile(iota.T(), 2));
+    auto column_indices = resized_iota & index_mask;
 
     const int off[] = {
         0, 1 << (qubits - target_qubit - 1)
@@ -842,7 +829,10 @@ QCircuit& Control_Hadamard::operator()(QCircuit& qc) const
 
     auto iota2 = af::iota(states * 2, 1, s32);
     auto control_indices = (iota2 & control_index_mask).as(b8);
-    af::replace(column_indices, control_indices, af::resize(iota, states * 2, 1, AF_INTERP_NEAREST));
+    //af::replace(column_indices, control_indices, af::resize(iota, states * 2, 1, AF_INTERP_NEAREST));
+    auto new_col_indices = af::shift(resized_iota, -1);
+    new_col_indices(af::end) = states;
+    af::replace(column_indices, control_indices, new_col_indices);
 
     const float sqrt2 = 0.70710678118f;
     const int val_mask = (1 << (qubits - target_qubit)) | 1;
@@ -1072,83 +1062,39 @@ QCircuit& ControlCircuitGate::operator()(QCircuit& qc) const
     const int states = qc.state_count();
     const int state_count = fast_pow2(qubit_count);
 
-    if (control_qubit >= qubits || control_qubit < 0)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
-    if (target_qubit_begin >= qubits || target_qubit_begin < 0)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
     if (target_qubit_begin + qubit_count > qubits)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        throw std::out_of_range{"Gate must fit inside the circuit qubit count"};
     if (target_qubit_begin <= control_qubit && control_qubit < target_qubit_begin + qubit_count)
-        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+        throw std::out_of_range{"Control qubit cannot be one of the target qubits of the gate"};
 
-    //Store circuit array in the host
-    af::dim4 dims = internal_circuit.dims();
-    std::vector<af::cfloat> vals(dims[0] * dims[1]);
-    internal_circuit.host(vals.data());
+    const int circuit_qubits = qc.qubit_count();
+    const int circuit_states = qc.state_count();
+    const int gate_qubits = qubit_count;
+    const int gate_states = 1 << gate_qubits;
+    const int gate_qubit_begin = target_qubit_begin;
+    af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
+    const af::array& gate = internal_circuit;
 
-    // Inserts a given bit to the given value at the given position
-    // e.g. insert_bit(5, 1, 1) 5 => b101 = b1011 = 11
-    //                                 ^ 
-    //                                 1 
-    auto insert_bit = [](int value, bool bit, int position) {
-        int temp = value & ~ ((1 << position) - 1);
-        temp <<= 1;
-        temp &= ~(1 << position);
-        temp |= (bit ? 1 : 0) << position;
-        temp |= value & ((1 << position) - 1);
-        return temp;
-    };
+    uint32_t rem_count = 1 << (circuit_qubits - gate_qubits - 1);
+    
+    auto len = gate_states * gate_states * rem_count;
+    auto m = af::tile(af::flat(af::tile(af::iota(gate_states, 1, s32).T(), gate_states)), rem_count);
+    auto n = af::iota(gate_states, gate_states * rem_count, s32);
+    auto ind = af::flat(af::tile(af::iota(rem_count, 1, s32).T(), gate_states * gate_states));
+    auto ii = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, n, ind, len);
+    auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, m, ind, len);
 
-    //Generates the index of the position of the element in the larget operation circuit matrix from the target qubits of the circuit,
-    //the control qubit and the current index being probed of the input circuit matrix
-    auto gen_index = [insert_bit](int control, int targets, int target_count, int target_value, int qubit_count, int ii) {
-        int index = ii;
-        if (control < targets)
-        {
-            index = insert_bit(index, 1, qubit_count - control - 1 - target_count);
-            for (int i = 0; i < target_count; ++i)
-                index = insert_bit(index, target_value & (1 << (target_count - 1 - i)), qubit_count - target_count - targets);
-        }
-        else
-        {
-            for (int i = 0; i < target_count; ++i)
-                index = insert_bit(index, target_value & (1 << (target_count - 1 - i)), qubit_count - target_count - targets - 1);
-            index = insert_bit(index, 1, qubit_count - control - 1);
-        }
-        return index;
-    };
+    auto ones = af::constant(1, len, s32);
+    ii = insert_bits(ii, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
+    jj = insert_bits(jj, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
 
-    //Create a temporary storage for the operation matrix
-    int rem_count = 1 << (qubits - 1 - qubit_count);
-    std::vector<af::cfloat> out_temp;
-    out_temp.resize(states * states);
+    af::array gate_values = gate(n * gate_states + m);
 
-    //Generate a identity matrix
-    for (int i = 0; i < states; ++i)
-        out_temp[i * states + i] = 1.0f;
+    jj.eval();
+    gate_matrix(ii * circuit_states + jj) = gate_values;
 
-    //Fill all the entries with the correct values
-    for (int i = 0; i < rem_count; ++i)
-    {
-        for (int m = 0; m < state_count; ++m)
-        {
-            int ii = gen_index(control_qubit, target_qubit_begin, qubit_count, m, qubits, i);
-            for (int n = 0; n < state_count; ++n)
-            {
-                int jj = gen_index(control_qubit, target_qubit_begin, qubit_count, n, qubits, i);
-
-                //Copy the entries from the input circuit to the correct positions
-                out_temp[ii * states + jj] = vals[m * state_count + n];
-            }
-        }
-    }
-
-    //Generate the operation matrix
-    af::array gate_mat = af::array(states, states, out_temp.data());
-
-    //Update the circuit matrix
     auto& circuit = qc.circuit();
-    circuit = af::matmul(gate_mat, circuit);
+    circuit = af::matmul(gate_matrix, circuit);
 
     return qc;
 }

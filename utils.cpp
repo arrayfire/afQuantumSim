@@ -8,18 +8,25 @@
  ********************************************************/
 #include "utils.h"
 
+static af::array tensor_product_af_cpu(const af::array& mat1, const af::array& mat2);
+static af::array tensor_product_af_opencl(const af::array& mat1, const af::array& mat2);
+
 af::array tensor_product(const af::array& mat1, const af::array& mat2)
 {
-    af::dim4 dims1 = mat1.dims();
-    af::dim4 dims2 = mat2.dims();
+    if (mat1.type() != mat2.type())
+        throw std::invalid_argument{"The tensor requires both matrices to have the same type"};
+    if (mat1.dims()[2] != 1 || mat1.dims()[3] != 1 || mat2.dims()[2] != 1|| mat2.dims()[3] != 1)
+        throw std::invalid_argument{"Tensor product only supports two dimensions"};
 
-    if (mat1.type() != mat2.type() || dims1[2] != 1 || dims1[3] != 1 || dims2[2] != 1 || dims2[3] != 1)
-        throw af::exception();
-
-    af::array out = af::tile(mat2, dims1[0], dims1[1]);
-    af::array resized_mat1 = af::resize(dims2[0], dims2[1], mat1, AF_INTERP_LOWER);
-
-    return out *= resized_mat1;
+    switch (af::getActiveBackend())
+    {
+    case AF_BACKEND_CPU:
+        return tensor_product_af_cpu(mat1, mat2);
+    case AF_BACKEND_OPENCL:
+        return tensor_product_af_opencl(mat1, mat2);
+    default:
+        return tensor_product_af_opencl(mat1, mat2);
+    }
 }
 
 std::string binary_string(int val, int length)
@@ -161,4 +168,37 @@ af::array gen_index(uint32_t gate_qubit_begin, uint32_t gate_qubit_count, uint32
                        af::constant(circuit_qubit_count - gate_qubit_count - gate_qubit_begin, array_length, s32),
                        af::constant(gate_qubit_count, array_length, s32),
                        array_length);
+}
+
+af::array tensor_product_af_cpu(const af::array& mat1, const af::array& mat2)
+{
+    const auto rows1 = mat1.dims()[0];
+    const auto cols1 = mat1.dims()[1];
+    const auto rows2 = mat2.dims()[0];
+    const auto cols2 = mat2.dims()[1];
+
+    mat1.eval();
+    mat2.eval();
+
+    auto temp = af::moddims(af::flat(af::tile(af::flat(mat1).T(), cols2)).T(), cols1 * cols2, rows1);
+    temp.eval();
+    auto resized_mat1 = af::moddims(af::tile(temp.T(),
+                                           1, rows2).T(),
+                                    rows1 * rows2, cols1 * cols2);
+    auto tiled_mat2 = af::tile(mat2, rows1, cols1);
+    resized_mat1.eval();
+    tiled_mat2.eval();
+
+    return tiled_mat2 *= resized_mat1;
+}
+
+af::array tensor_product_af_opencl(const af::array& mat1, const af::array& mat2)
+{
+    af::dim4 dims1 = mat1.dims();
+    af::dim4 dims2 = mat2.dims();
+
+    af::array out = af::tile(mat2, dims1[0], dims1[1]);
+    af::array resized_mat1 = af::resize(dims2[0], dims2[1], mat1, AF_INTERP_LOWER);
+
+    return out *= resized_mat1;
 }

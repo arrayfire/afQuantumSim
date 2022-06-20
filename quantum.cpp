@@ -423,6 +423,7 @@ std::string Z::to_string() const
 
 QCircuit& Hadamard::operator()(QCircuit& qc) const
 {
+/*
     const int qubits = qc.qubit_count();
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
@@ -436,6 +437,43 @@ QCircuit& Hadamard::operator()(QCircuit& qc) const
 
     auto& circuit = qc.circuit();
     circuit = af::matmul(temp, circuit);
+    return qc;
+*/
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
+    if (target_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+
+    int mask = 1 << (qubits - target_qubit - 1);
+    int masks_val[] = {
+        0, mask
+    };
+
+    auto row_indices = af::iota(states + 1, 1, s32) * 2;
+    auto temp = af::flat(af::tile(af::iota(states, 1, s32).T(), 2)) & af::constant(~mask, states * 2, s32);
+    temp.eval();
+    auto temp2 = af::tile(af::array(2, 1, masks_val), states);
+    temp2.eval();
+    auto column_indices = temp | temp2;
+
+    const float sqrt2 = 0.70710678118f;
+    auto values = af::constant(af::cfloat{ sqrt2 , 0.f }, states * 2);
+    int minus_mask = 1 << (qubits - target_qubit) | 1;
+    values.eval();
+    af::replace(values, ((af::iota(states * 2, 1, s32) & minus_mask) ^ minus_mask).as(b8),
+                af::constant(af::cfloat{ -sqrt2 , 0}, states * 2));
+
+    row_indices.eval();
+    column_indices.eval();
+    values.eval();
+    auto matrix_hadamard = af::sparse(states, states, values, row_indices, column_indices);
+    matrix_hadamard.eval();
+    //af_print(af::dense(matrix_hadamard));
+
+    auto& circuit = qc.circuit();
+    circuit.eval();
+    circuit = af::matmul(matrix_hadamard, circuit);
+
     return qc;
 }
 

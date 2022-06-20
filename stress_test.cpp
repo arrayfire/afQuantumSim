@@ -61,15 +61,17 @@ int main(int argc, char** argv)
     aqs::initialize(argc, argv);
     std::cout << "\n";
 
-    int repcount = 1000;
-    int qcount = 10;
+    int repcount = 10;
+    int qcount = 12;
     int gateqcount = 8;
 
     int size = 50;
-
-    tensor_product_test(size, repcount);
+    
+    Hadamard_gate_test(qcount, repcount);
 
     ControlCircuitGate_test(qcount, gateqcount, repcount);
+
+    tensor_product_test(size, repcount);
 
     X_gate_test(qcount, repcount);
 
@@ -78,8 +80,6 @@ int main(int argc, char** argv)
     Z_gate_test(qcount, repcount);
 
     Phase_gate_test(qcount, repcount);
-
-    Hadamard_gate_test(qcount, repcount);
 
     CX_gate_test(qcount, repcount);
 

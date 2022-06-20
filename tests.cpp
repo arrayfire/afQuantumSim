@@ -425,6 +425,13 @@ void test_qsim_gates()
     qs.simulate(qc);
     assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
 
+    std::vector<aqs::X> xgates = { aqs::X{2} , aqs::X{3} };
+    qc.reset_circuit();
+    qs.generate_global_state();
+    qc << xgates;
+    qs.simulate(qc);
+    assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
+
     // Y gate test
     std::cout << "Y gate\n";
     qs.qubit(2) = QState::zero();
@@ -436,6 +443,13 @@ void test_qsim_gates()
     qs.simulate(qc);
     assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
 
+    std::vector<aqs::Y> ygates = { aqs::Y{2} , aqs::Y{3} };
+    qc.reset_circuit();
+    qs.generate_global_state();
+    qc << ygates;
+    qs.simulate(qc);
+    assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
+
     // Z gate test
     std::cout << "Z gate\n";
     qs.qubit(2) = QState::zero();
@@ -444,6 +458,13 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Z(2);
     qc << aqs::Z(3);
+    qs.simulate(qc);
+    assert((qs.state(0b0001) == af::cfloat{-1.0f, 0.f}));
+
+    std::vector<aqs::Z> zgates = { aqs::Z{2} , aqs::Z{3} };
+    qc.reset_circuit();
+    qs.generate_global_state();
+    qc << zgates;
     qs.simulate(qc);
     assert((qs.state(0b0001) == af::cfloat{-1.0f, 0.f}));
 
@@ -466,6 +487,17 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Hadamard(2);
     qc << aqs::Hadamard(3);
+    qs.simulate(qc);
+
+    assert(cfequal(qs.state(0b0000), af::cfloat{0.5f, 0.f}, diff));
+    assert(cfequal(qs.state(0b0001), af::cfloat{-0.5f, 0.f}, diff));
+    assert(cfequal(qs.state(0b0010), af::cfloat{0.5f, 0.f}, diff));
+    assert(cfequal(qs.state(0b0011), af::cfloat{-0.5f, 0.f}, diff));
+
+    std::vector<aqs::Hadamard> hgates = { aqs::Hadamard{2} , aqs::Hadamard{3} };
+    qc.reset_circuit();
+    qs.generate_global_state();
+    qc << hgates;
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0000), af::cfloat{0.5f, 0.f}, diff));
@@ -549,6 +581,18 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Control_X(0, 2);
     qc << aqs::Control_X(1, 3);
+    qs.simulate(qc);
+    assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
+    assert(cfequal(qs.state(0b0101), af::cfloat{0.36f, 0.0f}, diff));
+    assert(cfequal(qs.state(0b0110), af::cfloat{-0.64f, 0.0f}, diff));
+    assert(cfequal(qs.state(0b0111), af::cfloat{0.0f, 0.48f}, diff));
+
+    //Group Control-X gate insertion test
+    std::cout << "CX gate through group insertion\n";
+    std::vector<aqs::Control_X> cxgates = { aqs::Control_X{0, 2} , aqs::Control_X{1, 3} };
+    qs.generate_global_state();
+    qc.reset_circuit();
+    qc << cxgates;
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
     assert(cfequal(qs.state(0b0101), af::cfloat{0.36f, 0.0f}, diff));

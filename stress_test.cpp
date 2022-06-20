@@ -61,17 +61,17 @@ int main(int argc, char** argv)
     aqs::initialize(argc, argv);
     std::cout << "\n";
 
-    int repcount = 10;
-    int qcount = 12;
-    int gateqcount = 8;
+    int repcount = 10000;
+    int qcount = 10;
+    int gateqcount = 6;
 
-    int size = 50;
+    int size = 25;
     
+    tensor_product_test(size, repcount);
+
     Hadamard_gate_test(qcount, repcount);
 
     ControlCircuitGate_test(qcount, gateqcount, repcount);
-
-    tensor_product_test(size, repcount);
 
     X_gate_test(qcount, repcount);
 
@@ -530,9 +530,8 @@ void tensor_product_test(int size, int test_count)
         res.eval();
     };
 
-    profile(func1, test_count, "-- Test: New tensor product for matrices of size " + std::to_string(size) + " --");
-
     profile(func2, test_count, "-- Test: Old tensor product for matrices of size " + std::to_string(size) + " --");
+    profile(func1, test_count, "-- Test: New tensor product for matrices of size " + std::to_string(size) + " --");
 }
 
 af::array old_tensor(const af::array& mat1, const af::array& mat2)

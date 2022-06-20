@@ -23,7 +23,7 @@ af::array tensor_product(const af::array& mat1, const af::array& mat2)
     case AF_BACKEND_CPU:
         return tensor_product_af_cpu(mat1, mat2);
     case AF_BACKEND_OPENCL:
-        return tensor_product_af_opencl(mat1, mat2);
+         return tensor_product_af_opencl(mat1, mat2);
     default:
         return tensor_product_af_opencl(mat1, mat2);
     }

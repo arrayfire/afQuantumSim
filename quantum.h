@@ -25,6 +25,7 @@ namespace aqs
 {
 
 static const float pi = 3.14159265358979323846f;
+static constexpr uint32_t max_qubit_count = 30;
 
 /**
  * @brief Class managing the behaviour of one qubit
@@ -209,6 +210,9 @@ public:
 
     template<typename T>
     friend QCircuit& operator<<(QCircuit& qc, const T& gate);
+
+    template<typename T>
+    friend QCircuit& operator<<(QCircuit& qc, const std::vector<T>& gates);
 
     uint32_t qubit_count() const noexcept { return qubits_; }
     uint32_t state_count() const noexcept { return fast_pow2(qubits_); }
@@ -396,6 +400,18 @@ QCircuit& operator<<(QCircuit& qc, const T& gate)
     return gate(qc);
 }
 
+template<typename T>
+QCircuit& operator<<(QCircuit& qc, const std::vector<T>& gates)
+{
+    static_assert(std::is_base_of<QGate, T>::value, "Gate must inherit from QGate class");
+    for (const auto& gate : gates)
+    {
+        qc.representation_.append(gate.to_string());
+        gate(qc);
+    }
+    return qc;
+}
+
 class Barrier : public QGate
 {
 public:
@@ -415,6 +431,11 @@ public:
     uint32_t target_qubit;
 };
 
+using Not = X;
+
+template<>
+QCircuit& operator<<<X>(QCircuit& qc, const std::vector<X>& gates);
+
 class Y : public QGate
 {
 public:
@@ -423,6 +444,9 @@ public:
     std::string to_string() const override;
     uint32_t target_qubit;
 };
+
+template<>
+QCircuit& operator<<<Y>(QCircuit& qc, const std::vector<Y>& gates);
 
 class Z : public QGate
 {
@@ -433,7 +457,9 @@ public:
     uint32_t target_qubit;
 };
 
-using Not = X;
+
+template<>
+QCircuit& operator<<<Z>(QCircuit& qc, const std::vector<Z>& gates);
 
 class Hadamard : public QGate
 {
@@ -444,6 +470,9 @@ public:
     uint32_t target_qubit;
 };
 
+template<>
+QCircuit& operator<<<Hadamard>(QCircuit& qc, const std::vector<Hadamard>& gates);
+
 class Phase : public QGate
 {
 public:
@@ -453,6 +482,9 @@ public:
     uint32_t target_qubit;
     float angle;
 };
+
+template<>
+QCircuit& operator<<<Phase>(QCircuit& qc, const std::vector<Phase>& gates);
 
 class Swap : public QGate
 {

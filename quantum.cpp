@@ -24,8 +24,8 @@ static const af::cfloat x_mat[4] = {
 
 /*
     Pauli Y matrix
-    Y = [  0 , i ]
-        [ -i , 0 ] 
+    Y = [ 0 , -i ]
+        [ i ,  0 ] 
 */
 static const af::cfloat y_mat[4] = {
     {0.f , 0.f} , {0.f , -1.f},
@@ -104,7 +104,7 @@ bool QState::peek_measure() const
 
 bool QState::measure()
 {
-    bool measurement = static_cast<int>(peek_measure());
+    bool measurement = peek_measure();
 
     state_[ measurement] = 1.f;
     state_[!measurement] = 0.f;
@@ -115,8 +115,8 @@ bool QState::measure()
 std::array<uint32_t, 2> QState::profile_measure(uint32_t rep_count) const
 {
     uint32_t t = 0;
-    for (int i = 0; i < rep_count; ++i)
-        t += static_cast<int>(peek_measure());
+    for (uint32_t i = 0; i < rep_count; ++i)
+        t += static_cast<uint32_t>(peek_measure());
 
     return { rep_count - t, t };
 }
@@ -150,7 +150,7 @@ void QCircuit::Global_Measure()
 
 void QCircuit::Measure(uint32_t qubit)
 {
-    const int count = qubit_count();
+    const auto count = qubit_count();
     if (qubit >= count || qubit < 0)
         throw std::out_of_range{"Cannot measure the given qubit"};
 }
@@ -169,7 +169,7 @@ QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const 
 void QSimulator::generate_global_state()
 {
     std::vector<af::cfloat> temp(qubit_count() * 2);
-    for (int i = 0; i < qubit_count(); ++i)
+    for (uint32_t i = 0; i < qubit_count(); ++i)
     {
         temp[i * 2    ] = states_[i][0];
         temp[i * 2 + 1] = states_[i][1];
@@ -180,7 +180,7 @@ void QSimulator::generate_global_state()
     global_state_ = states.col(0);
 
     //Generate the global state from the tensor product of elements
-    for (int i = 1; i < qubit_count(); ++i)
+    for (uint32_t i = 1; i < qubit_count(); ++i)
         global_state_ = tensor_product(global_state_, states.col(i));
 }
 
@@ -247,8 +247,6 @@ uint32_t QSimulator::peek_measure_all() const
 uint32_t QSimulator::measure_all()
 {
     uint32_t measurement = peek_measure_all();
-    
-    int qubit_one = fast_log2(measurement);
 
     //Set the global state to the result of the measurement
     global_state_(af::span) = 0.f;
@@ -286,7 +284,7 @@ float QSimulator::state_probability(uint32_t state) const
 
 std::vector<uint32_t> QSimulator::profile_measure_all(uint32_t rep_count) const
 {
-    const int states = state_count();
+    const auto states = state_count();
     std::vector<uint32_t> count(states);
 
     //Generate rep_count amount of random numbers in [0, 1] and repeat them along dim 1
@@ -317,8 +315,8 @@ std::array<uint32_t , 2> QSimulator::profile_measure(uint32_t qubit, uint32_t re
     if (qubit >= qubit_count())
         throw std::out_of_range{"Cannot profile measurement of the given qubit"};
 
-    int states = state_count();
-    int qubit_state = 1 << (qubit_count() - qubit - 1);
+    auto states = state_count();
+    int32_t qubit_state = 1 << (qubit_count() - qubit - 1);
 
     //Generate rep_count of random floats between 0 and 1
     af::array rnd = af::randu(rep_count, f32, intern_rnd_engine);
@@ -348,7 +346,7 @@ QCircuit& X::operator()(QCircuit& qc) const
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
-    const int mask = 1 << (qubits - target_qubit - 1);
+    const int32_t mask = 1 << (qubits - target_qubit - 1);
     auto col_indices = af::iota(states, 1, s32) ^ mask;
     auto row_indices = af::iota(states + 1, 1, s32);
 
@@ -410,7 +408,7 @@ QCircuit& Y::operator()(QCircuit& qc) const
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
-    const int mask = 1 << (qubits - target_qubit - 1);
+    const int32_t mask = 1 << (qubits - target_qubit - 1);
     auto iota = af::iota(states, 1, s32);
     auto col_indices = iota ^ mask;
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -476,7 +474,7 @@ QCircuit& Z::operator()(QCircuit& qc) const
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
-    const int mask = 1 << (qubits - target_qubit - 1);
+    const int32_t mask = 1 << (qubits - target_qubit - 1);
     auto iota = af::iota(states, 1, s32);
     auto col_indices = iota;
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -537,7 +535,7 @@ std::string Z::to_string() const
 
 QCircuit& Hadamard::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
+    const auto qubits = qc.qubit_count();
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
@@ -640,7 +638,7 @@ QCircuit& Phase::operator()(QCircuit& qc) const
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
-    const int mask = 1 << (qubits - target_qubit - 1);
+    const int32_t mask = 1 << (qubits - target_qubit - 1);
     auto iota = af::iota(states, 1, s32);
     auto col_indices = iota;
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -648,10 +646,53 @@ QCircuit& Phase::operator()(QCircuit& qc) const
     auto vals = af::constant(af::cfloat{ std::cos(angle) , std::sin(angle) }, states);
     af::replace(vals, (iota & mask).as(b8), af::constant(af::cfloat{ 1.f , 0.f }, states));
 
-    auto matrix_y = af::sparse(states, states, vals, row_indices, col_indices);
+    auto matrix_phase = af::sparse(states, states, vals, row_indices, col_indices);
 
     auto& circuit = qc.circuit();
-    circuit = af::matmul(matrix_y, circuit);
+    circuit = af::matmul(matrix_phase, circuit);
+
+    return qc;
+}
+
+template<>
+QCircuit& operator<<<Phase>(QCircuit& qc, const std::vector<Phase>& gates)
+{
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
+
+    if (gates.size() > qubits)
+        throw std::invalid_argument{"Cannot add more than circuit qubit count (concurrent) gates"};
+
+    std::array<bool, max_qubit_count> qubit_gates{};
+    std::array<af::cfloat, max_qubit_count> qubit_angles{};
+    for (const auto& gate : gates)
+    {
+        auto index = gate.target_qubit;
+        if (index >= qubits)
+            throw std::invalid_argument{"Cannot add gate at the given qubit position"};
+        if (qubit_gates[index])
+            throw std::invalid_argument{"Cannot add (concurrent) gate to the same qubit multiple times"};
+        qubit_gates[index] = true;
+        qubit_angles[index] = { std::cos(gate.angle) , std::sin(gate.angle) };
+    }
+
+    af::array identity_matrix = af::identity(2, 2, c32);
+    af::array phase_matrices = af::tile(af::flat(identity_matrix), 1, max_qubit_count);
+    phase_matrices.row(3) = af::array(1, max_qubit_count, qubit_angles.data());
+
+    af::array gates_matrix = qubit_gates[0] ? af::moddims(phase_matrices.col(0), 2, 2) : identity_matrix;
+
+    for (uint32_t i = 1; i < qubits; ++i)
+    {
+        const auto& has_gate = qubit_gates[i];
+        if (has_gate)
+            gates_matrix = tensor_product(gates_matrix, af::moddims(phase_matrices.col(i), 2, 2));
+        else
+            gates_matrix = tensor_product(gates_matrix, identity_matrix);
+    }
+
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(gates_matrix, circuit);
 
     return qc;
 }
@@ -686,8 +727,8 @@ QCircuit& Swap::operator()(QCircuit& qc) const
     int32_t posA = qubits - 1 - target_qubit_A;
     int32_t posB = qubits - 1 - target_qubit_B;
 
-    int maskA = 1 << (qubits - 1 - target_qubit_A);
-    int maskB = 1 << (qubits - 1 - target_qubit_B);
+    int32_t maskA = 1 << (qubits - 1 - target_qubit_A);
+    int32_t maskB = 1 << (qubits - 1 - target_qubit_B);
 
     // Generate column indices (swap the bits in the states of qA and qB)
     auto col_indices = af::iota(states, 1, s32);
@@ -712,8 +753,8 @@ std::string Swap::to_string() const
 
 QCircuit& Control_X::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
     if (qubits < 2)
         throw std::domain_error{"Gate not supported for given simulation"};
     if (control_qubit >= qubits)
@@ -723,8 +764,8 @@ QCircuit& Control_X::operator()(QCircuit& qc) const
     if (control_qubit == target_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    int control_mask = 1 << (qubits - 1 - control_qubit);
-    int target_mask = 1 << (qubits - 1 - target_qubit);
+    int32_t control_mask = 1 << (qubits - 1 - control_qubit);
+    int32_t target_mask = 1 << (qubits - 1 - target_qubit);
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -747,8 +788,8 @@ std::string Control_X::to_string() const
 
 QCircuit& Control_Y::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
     if (qubits < 2)
         throw std::domain_error{"Gate not supported for given simulation"};
     if (control_qubit >= qubits)
@@ -758,9 +799,9 @@ QCircuit& Control_Y::operator()(QCircuit& qc) const
     if (control_qubit == target_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    int control_mask = 1 << (qubits - 1 - control_qubit);
-    int target_mask = 1 << (qubits - 1 - target_qubit);
-    int mask = control_mask | target_mask;
+    int32_t control_mask = 1 << (qubits - 1 - control_qubit);
+    int32_t target_mask = 1 << (qubits - 1 - target_qubit);
+    int32_t mask = control_mask | target_mask;
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -788,8 +829,8 @@ std::string Control_Y::to_string() const
 
 QCircuit& Control_Z::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
     if (qubits < 2)
         throw std::domain_error{"Gate not supported for given simulation"};
     if (control_qubit >= qubits)
@@ -799,9 +840,9 @@ QCircuit& Control_Z::operator()(QCircuit& qc) const
     if (control_qubit == target_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    int control_mask = 1 << (qubits - 1 - control_qubit);
-    int target_mask = 1 << (qubits - 1 - target_qubit);
-    int mask = control_mask | target_mask;
+    int32_t control_mask = 1 << (qubits - 1 - control_qubit);
+    int32_t target_mask = 1 << (qubits - 1 - target_qubit);
+    int32_t mask = control_mask | target_mask;
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -827,8 +868,8 @@ std::string Control_Z::to_string() const
 
 QCircuit& Control_Phase::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
     if (qubits < 2)
         throw std::domain_error{"Gate not supported for given simulation"};
     if (control_qubit >= qubits)
@@ -838,9 +879,9 @@ QCircuit& Control_Phase::operator()(QCircuit& qc) const
     if (control_qubit == target_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    int control_mask = 1 << (qubits - 1 - control_qubit);
-    int target_mask = 1 << (qubits - 1 - target_qubit);
-    int mask = control_mask | target_mask;
+    int32_t control_mask = 1 << (qubits - 1 - control_qubit);
+    int32_t target_mask = 1 << (qubits - 1 - target_qubit);
+    int32_t mask = control_mask | target_mask;
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -874,15 +915,15 @@ std::string Control_Phase::to_string() const
 
 static QCircuit& cswap_gate_af_cpu(QCircuit& qc, uint32_t control_qubit, uint32_t target_qubit_A, uint32_t target_qubit_B)
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
 
     std::vector<int> cols(states), rows(states + 1);
 
-    int control_mask = 1 << (qubits - 1 - control_qubit);
-    int target_maskA = 1 << (qubits - 1 - target_qubit_A);
-    int target_maskB = 1 << (qubits - 1 - target_qubit_B);
-    int target_mask = target_maskA | target_maskB;
+    int32_t control_mask = 1 << (qubits - 1 - control_qubit);
+    int32_t target_maskA = 1 << (qubits - 1 - target_qubit_A);
+    int32_t target_maskB = 1 << (qubits - 1 - target_qubit_B);
+    int32_t target_mask = target_maskA | target_maskB;
 
     rows[0] = 0;
     for (int i = 0; i < states; ++i)
@@ -907,15 +948,15 @@ static QCircuit& cswap_gate_af_cpu(QCircuit& qc, uint32_t control_qubit, uint32_
 
 static QCircuit& cswap_gate_af_opencl(QCircuit& qc, uint32_t control_qubit, uint32_t target_qubit_A, uint32_t target_qubit_B)
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
 
     int32_t posA = qubits - 1 - target_qubit_A;
     int32_t posB = qubits - 1 - target_qubit_B;
 
-    int control = 1 << (qubits - control_qubit - 1);
-    int targetA = 1 << posA;
-    int targetB = 1 << posB;
+    int32_t control = 1 << (qubits - control_qubit - 1);
+    int32_t targetA = 1 << posA;
+    int32_t targetB = 1 << posB;
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -938,8 +979,8 @@ static QCircuit& cswap_gate_af_opencl(QCircuit& qc, uint32_t control_qubit, uint
 
 QCircuit& Control_Swap::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
 
     if (qubits < 3)
         throw std::domain_error{"Gate not supported for given circuit"};
@@ -957,9 +998,9 @@ QCircuit& Control_Swap::operator()(QCircuit& qc) const
     int32_t posA = qubits - 1 - target_qubit_A;
     int32_t posB = qubits - 1 - target_qubit_B;
 
-    int control = 1 << (qubits - control_qubit - 1);
-    int targetA = 1 << posA;
-    int targetB = 1 << posB;
+    int32_t control = 1 << (qubits - control_qubit - 1);
+    int32_t targetA = 1 << posA;
+    int32_t targetB = 1 << posB;
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -988,8 +1029,8 @@ std::string Control_Swap::to_string() const
 
 QCircuit& Control_Hadamard::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
     if (qubits < 2)
         throw std::domain_error{"Gate not supported for given simulation"};
     if (control_qubit >= qubits)
@@ -999,9 +1040,9 @@ QCircuit& Control_Hadamard::operator()(QCircuit& qc) const
     if (control_qubit == target_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    const int value_mask = (1 << (qubits - target_qubit)) | 1;
-    const int control_index_mask = 1 << (qubits - control_qubit);
-    const int index_mask = ~(1 << (qubits - target_qubit - 1));
+    const int32_t value_mask = (1 << (qubits - target_qubit)) | 1;
+    const int32_t control_index_mask = 1 << (qubits - control_qubit);
+    const int32_t index_mask = ~(1 << (qubits - target_qubit - 1));
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32) * 2;
@@ -1009,7 +1050,7 @@ QCircuit& Control_Hadamard::operator()(QCircuit& qc) const
     auto resized_iota = af::flat(af::tile(iota.T(), 2));
     auto column_indices = resized_iota & index_mask;
 
-    const int off[] = {
+    const int32_t off[] = {
         0, 1 << (qubits - target_qubit - 1)
     };
 
@@ -1024,7 +1065,7 @@ QCircuit& Control_Hadamard::operator()(QCircuit& qc) const
     af::replace(column_indices, control_indices, new_col_indices);
 
     const float sqrt2 = 0.70710678118f;
-    const int val_mask = (1 << (qubits - target_qubit)) | 1;
+    const int32_t val_mask = (1 << (qubits - target_qubit)) | 1;
 
     const af::cfloat identity_vals[] = {
         { 1.f , 0.f } , { 0.f , 0.f }
@@ -1051,8 +1092,8 @@ std::string Control_Hadamard::to_string() const
 
 QCircuit& CControl_Not::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
 
     if (qubits < 3)
         throw std::domain_error{"Gate not supported for given simulation"};
@@ -1065,8 +1106,8 @@ QCircuit& CControl_Not::operator()(QCircuit& qc) const
     if (control_qubit_A == target_qubit || control_qubit_B == target_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
-    int target_mask = 1 << (qubits - 1 - target_qubit);
+    int32_t control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
+    int32_t target_mask = 1 << (qubits - 1 - target_qubit);
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -1090,8 +1131,8 @@ std::string CControl_Not::to_string() const
 
 QCircuit& Or::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
 
     if (qubits < 3)
         throw std::domain_error{"Gate not supported for given simulation"};
@@ -1104,8 +1145,8 @@ QCircuit& Or::operator()(QCircuit& qc) const
     if (control_qubit_A == target_qubit || control_qubit_B == target_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    int control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
-    int target_mask = 1 << (qubits - 1 - target_qubit);
+    int32_t control_mask = (1 << (qubits - 1 - control_qubit_A)) | (1 << (qubits - 1 - control_qubit_B));
+    int32_t target_mask = 1 << (qubits - 1 - target_qubit);
 
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
@@ -1123,23 +1164,23 @@ QCircuit& Or::operator()(QCircuit& qc) const
 
 std::string Or::to_string() const
 {
-    int top = control_qubit_A < control_qubit_B ? control_qubit_A : control_qubit_B;
-    int bottom = control_qubit_A < control_qubit_B ? control_qubit_B : control_qubit_A;
+    auto top = control_qubit_A < control_qubit_B ? control_qubit_A : control_qubit_B;
+    auto bottom = control_qubit_A < control_qubit_B ? control_qubit_B : control_qubit_A;
     if (target_qubit < top)
         top = target_qubit;
     if (target_qubit > bottom)
         bottom = target_qubit;
 
     std::string qubits;
-    for (int i = top; i < bottom; i++)
+    for (uint32_t i = top; i < bottom; i++)
         qubits.append(std::to_string(i) + ",");
     qubits.append(std::to_string(bottom) + ";");
 
     return "Or,0," + std::to_string(bottom - top + 1) + ":" + qubits;
 }
 
-static std::string update_circuit_representation(const std::string& circuit_string, int offset);
-static std::string update_ctrl_circuit_representation(const std::string& circuit_string, int control, int target);
+static std::string update_circuit_representation(const std::string& circuit_string, uint32_t offset);
+static std::string update_ctrl_circuit_representation(const std::string& circuit_string, uint32_t control, uint32_t target);
 
 CircuitGate::CircuitGate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name)
     : internal_circuit(circuit_.circuit()), representation{},
@@ -1169,19 +1210,19 @@ CircuitGate::CircuitGate(const QCircuit& circuit_, uint32_t target_qubit_begin_,
 
 QCircuit& CircuitGate::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
-    const int state_count = fast_pow2(qubit_count);
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
+    const auto state_count = fast_pow2(qubit_count);
     if (target_qubit_begin >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
     if (target_qubit_begin + qubit_count > qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
-    const int circuit_qubits = qc.qubit_count();
-    const int circuit_states = qc.state_count();
-    const int gate_qubits = qubit_count;
-    const int gate_states = 1 << gate_qubits;
-    const int gate_qubit_begin = target_qubit_begin;
+    const uint32_t circuit_qubits = qc.qubit_count();
+    const uint32_t circuit_states = qc.state_count();
+    const uint32_t gate_qubits = qubit_count;
+    const uint32_t gate_states = 1 << gate_qubits;
+    const uint32_t gate_qubit_begin = target_qubit_begin;
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
     const af::array& gate = internal_circuit;
 
@@ -1247,20 +1288,20 @@ ControlCircuitGate::ControlCircuitGate(const QCircuit& circuit_, uint32_t contro
 
 QCircuit& ControlCircuitGate::operator()(QCircuit& qc) const
 {
-    const int qubits = qc.qubit_count();
-    const int states = qc.state_count();
-    const int state_count = fast_pow2(qubit_count);
+    const auto qubits = qc.qubit_count();
+    const auto states = qc.state_count();
+    const auto state_count = fast_pow2(qubit_count);
 
     if (target_qubit_begin + qubit_count > qubits)
         throw std::out_of_range{"Gate must fit inside the circuit qubit count"};
     if (target_qubit_begin <= control_qubit && control_qubit < target_qubit_begin + qubit_count)
         throw std::out_of_range{"Control qubit cannot be one of the target qubits of the gate"};
 
-    const int circuit_qubits = qc.qubit_count();
-    const int circuit_states = qc.state_count();
-    const int gate_qubits = qubit_count;
-    const int gate_states = 1 << gate_qubits;
-    const int gate_qubit_begin = target_qubit_begin;
+    const uint32_t circuit_qubits = qc.qubit_count();
+    const uint32_t circuit_states = qc.state_count();
+    const uint32_t gate_qubits = qubit_count;
+    const uint32_t gate_states = 1 << gate_qubits;
+    const uint32_t gate_qubit_begin = target_qubit_begin;
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
     const af::array& gate = internal_circuit;
 
@@ -1378,7 +1419,7 @@ QState Phase_op(const QState& state, float angle)
     return { { temp[0].real , temp[0].imag } , { temp[1].real , temp[1].imag} };
 }
 
-std::string update_circuit_representation(const std::string& circuit_string, int offset)
+std::string update_circuit_representation(const std::string& circuit_string, uint32_t offset)
 {
     std::string out;
     std::size_t current_begin = 0;
@@ -1429,7 +1470,7 @@ std::string update_circuit_representation(const std::string& circuit_string, int
     return out;
 }
 
-std::string update_ctrl_circuit_representation(const std::string& circuit_string, int control, int target)
+std::string update_ctrl_circuit_representation(const std::string& circuit_string, uint32_t control, uint32_t target)
 {
     std::string out;
     std::size_t current_begin = 0;

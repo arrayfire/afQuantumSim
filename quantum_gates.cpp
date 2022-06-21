@@ -11,7 +11,7 @@
 
 namespace aqs
 {
-   QCircuit Control_GroupPhase(int qubits, int control_qubit, int target_qubit_begin, float angle)
+   QCircuit Control_GroupPhase(uint32_t qubits, uint32_t control_qubit, uint32_t target_qubit_begin, float angle)
    {
         if (control_qubit < 0 || control_qubit >= qubits)
             throw std::invalid_argument{"Invalid control qubit position"};
@@ -26,22 +26,22 @@ namespace aqs
         else
         {
             QCircuit cphases(qubits - 1 - target_qubit_begin);
-            for (int i = target_qubit_begin; i < qubits; ++i)
+            for (uint32_t i = target_qubit_begin; i < qubits; ++i)
                 cphases << Phase(i, angle);
         }
 
         return qc;
    } 
 
-   QCircuit NControl_Gate(int qubits, int control_qubit_begin, int control_qubit_count, int target_qubit_begin, const QCircuit& gate)
+   QCircuit NControl_Gate(uint32_t qubits, uint32_t control_qubit_begin, uint32_t control_qubit_count, uint32_t target_qubit_begin, const QCircuit& gate)
    {
         if (gate.qubit_count() >= qubits)
             throw std::invalid_argument{"Gate not supported"};
-        if (control_qubit_count <= 0)
+        if (control_qubit_count == 0)
             throw std::invalid_argument{"The number of control qubits must be at least 1"};
-        if (target_qubit_begin < 0 || (target_qubit_begin + gate.qubit_count()) > qubits)
+        if ((target_qubit_begin + gate.qubit_count()) > qubits)
             throw std::invalid_argument{"Invalid target qubit_begin position"};
-        if (control_qubit_begin < 0 || (control_qubit_begin + control_qubit_count) > target_qubit_begin)
+        if ((control_qubit_begin + control_qubit_count) > target_qubit_begin)
             throw std::invalid_argument{"Invalid control_qubit position"};
 
         QCircuit qc(qubits);
@@ -54,7 +54,7 @@ namespace aqs
         {
             QCircuit temp(gate.qubit_count() + 1 + target_qubit_begin - control_qubit_begin - control_qubit_count);
             temp << ControlCircuitGate(gate, 0, target_qubit_begin - control_qubit_begin - control_qubit_count + 1);
-            for (int i = 0; i < control_qubit_count - 1; ++i)
+            for (uint32_t i = 0; i < control_qubit_count - 1; ++i)
             {
                 QCircuit tmp(temp.qubit_count() + 1);
                 tmp << ControlCircuitGate(temp, 0, 1);

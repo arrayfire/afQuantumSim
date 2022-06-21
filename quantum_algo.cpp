@@ -12,11 +12,14 @@
 
 namespace aqs
 {
-    QCircuit grover_oracle(int search_qubits, int marked_state)
+    QCircuit grover_oracle(uint32_t search_qubits, uint32_t marked_state)
     {
+        if (marked_state >= fast_pow2(search_qubits))
+            throw std::invalid_argument{"Marked state should be in the range [0, 2^search_qubits)"};
+
         QCircuit qc(search_qubits);
 
-        for (int i = 0; i < search_qubits; ++i)
+        for (uint32_t i = 0; i < search_qubits; ++i)
         {
             if (!(marked_state & (1 << i)))
                 qc << X(i);
@@ -26,7 +29,7 @@ namespace aqs
         QCircuit z(1); z << Z(0);
         qc << CircuitGate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, z), 0);
 
-        for (int i = 0; i < search_qubits; ++i)
+        for (int32_t i = 0; i < search_qubits; ++i)
         {
             if (!(marked_state & (1 << i)))
                 qc << X(i);
@@ -34,23 +37,23 @@ namespace aqs
         return qc;
     }
 
-    QCircuit grover_search(int search_qubits, const QCircuit& oracle, int iterations, std::string oracle_name)
+    QCircuit grover_search(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, std::string oracle_name)
     {
         if (oracle.qubit_count() < search_qubits)
             throw std::invalid_argument{"Cannot use given oracle for this qubit circuit"};
 
         QCircuit qc(oracle.qubit_count());
-        for (int i = 0; i < search_qubits; ++i)
+        for (uint32_t i = 0; i < search_qubits; ++i)
             qc << Hadamard(i);
 
         QCircuit z(1); z << Z(0);
-        for (int i = 0; i < iterations; ++i)
+        for (uint32_t i = 0; i < iterations; ++i)
         {
             qc << Barrier(false);
             qc << CircuitGate(oracle, 0, oracle_name);
             qc << Barrier(false);
 
-            for (int j = 0; j < search_qubits; ++j)
+            for (uint32_t j = 0; j < search_qubits; ++j)
             {
                 qc << Hadamard(j);
                 qc << X(j);
@@ -59,7 +62,7 @@ namespace aqs
             //Generate a N-Control Z gate
             qc << CircuitGate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, z), 0);
 
-            for (int j = 0; j < search_qubits; ++j)
+            for (uint32_t j = 0; j < search_qubits; ++j)
             {
                 qc << X(j);
                 qc << Hadamard(j);
@@ -69,20 +72,20 @@ namespace aqs
         return qc;
     }
 
-    QCircuit grover_iteration(int search_qubits, const QCircuit& oracle, int iterations)
+    QCircuit grover_iteration(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations)
     {
         QCircuit qc(search_qubits);
         QCircuit z(1); z << Z(0);
-        for (int i = 0; i < iterations; ++i)
+        for (uint32_t i = 0; i < iterations; ++i)
         {
             qc << CircuitGate(oracle, 0);
-            for (int j = 0; j < search_qubits; ++j)
+            for (uint32_t j = 0; j < search_qubits; ++j)
             {
                 qc << Hadamard(j);
                 qc << X(j);
             }
             qc << CircuitGate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, z), 0);
-            for (int j = 0; j < search_qubits; ++j)
+            for (uint32_t j = 0; j < search_qubits; ++j)
             {
                 qc << X(j);
                 qc << Hadamard(j);
@@ -91,25 +94,25 @@ namespace aqs
         return qc;
     }
 
-    QCircuit fourier_transform(int qubits)
+    QCircuit fourier_transform(uint32_t qubits)
     {
         QCircuit qc(qubits);
-        for (int i = qubits - 1; i >= 0; --i)
+        for (int32_t i = qubits - 1; i >= 0; --i)
         {
             qc << Hadamard(i);
-            for (int j = 0; j < i; ++j)
+            for (uint32_t j = 0; j < i; ++j)
                 qc << Control_Phase(j, i, aqs::pi / (1 << (i - j)));
         }
 
         return qc;
     }
 
-    QCircuit inverse_fourier_transform(int qubits)
+    QCircuit inverse_fourier_transform(uint32_t qubits)
     {
         QCircuit qc(qubits);
-        for (int i = 0; i < qubits; ++i)
+        for (uint32_t i = 0; i < qubits; ++i)
         {
-            for (int j = i - 1; j >= 0; --j)
+            for (int32_t j = i - 1; j >= 0; --j)
                 qc << Control_Phase(j, i, -aqs::pi / (1 << (i - j)));
 
             qc << Hadamard(i);

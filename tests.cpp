@@ -520,6 +520,17 @@ void test_qsim_gates()
     assert(cfequal(qs.state(0b0010), af::cfloat{-0.48f, 0.64f}, diff));
     assert(cfequal(qs.state(0b0011), af::cfloat{0.f, 0.f}, diff));
 
+    std::vector<aqs::Phase> phasegates = { aqs::Phase{2 , atanf(.75f) } , aqs::Phase{3 , atan(1.f)} };
+    qc.reset_circuit();
+    qs.generate_global_state();
+    qc << phasegates;
+    qs.simulate(qc);
+
+    assert(cfequal(qs.state(0b0000), af::cfloat{0.6f, 0.f}, diff));
+    assert(cfequal(qs.state(0b0001), af::cfloat{0.f, 0.f}, diff));
+    assert(cfequal(qs.state(0b0010), af::cfloat{-0.48f, 0.64f}, diff));
+    assert(cfequal(qs.state(0b0011), af::cfloat{0.f, 0.f}, diff));
+
     // XOR gate test
     std::cout << "Xor gate\n";
     qs.qubit(0) = QState::zero();

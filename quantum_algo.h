@@ -27,7 +27,7 @@ namespace aqs
      * @param iterations number of iterations of Grover's Iteration
      * @return QCircuit 
      */
-    QCircuit grover_iteration(int search_qubits, const QCircuit& oracle, int iterations);
+    QCircuit grover_iteration(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations);
 
     /**
      * @brief Generates a circuit which executes Grover' search algorithm using the given oracle and iterations
@@ -38,7 +38,7 @@ namespace aqs
      * @param oracle_name name to assign to the oracle gate
      * @return QCircuit 
      */
-    QCircuit grover_search(int search_qubits, const QCircuit& oracle, int iterations, std::string oracle_name = "");
+    QCircuit grover_search(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, std::string oracle_name = "");
 
     /**
      * @brief 
@@ -47,7 +47,7 @@ namespace aqs
      * @param marked_state 
      * @return QCircuit 
      */
-    QCircuit grover_oracle(int search_qubits, int marked_state);
+    QCircuit grover_oracle(uint32_t search_qubits, uint32_t marked_state);
 
     /**
      * @brief Generates the Quantum Fourier Algorithm Circuit for the given amount of qubits
@@ -57,7 +57,7 @@ namespace aqs
      * @param qubits number of qubits for QFT workspace
      * @return QCircuit 
      */
-    QCircuit fourier_transform(int qubits);
+    QCircuit fourier_transform(uint32_t qubits);
 
     /**
      * @brief Generates the Inverse Quantum Fourier Algorithm Circuit for the given amount of qubits
@@ -67,5 +67,5 @@ namespace aqs
      * @param qubits number of qubits for QFT† workspace
      * @return QCircuit 
      */
-    QCircuit inverse_fourier_transform(int qubits);
+    QCircuit inverse_fourier_transform(uint32_t qubits);
 }

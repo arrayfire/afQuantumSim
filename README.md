@@ -36,7 +36,7 @@ It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
 
 * Implement deferral of simulation (currently the addition of matrix requires a matrix multiplication on the spot)
 
-* Implement an optimizer that using the deferral of simulation finds optimizations of the circuit created (removal of gates that cancel each other, combine the addition of the same gate multiple times in a pre-generated matrix)
+* Implement an optimizer that, using the deferral of simulation, finds optimizations of the circuit created (removal of gates that cancel each other, combine the addition of the same gate multiple times in a pre-generated matrix)
 
 * Implement tests for new features
 

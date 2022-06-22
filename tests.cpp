@@ -160,10 +160,10 @@ void test_qubit_profile_measure()
 
     //Produce 99.9% confidence interval
     auto range_true = [](const aqs::QState& q, int rep_count) {
-        float std_dev = sqrtf(q.probability_true() * q.probability_false());
+        float std_dev = std::sqrt(q.probability_true() * q.probability_false());
 
         int expected = rep_count * q.probability_true();
-        int diff = sqrtf(rep_count) * 3.291f * std_dev;
+        int diff = std::sqrt(rep_count) * 3.291f * std_dev;
 
         return std::pair<int, int>(expected - diff , expected + diff);
     };
@@ -238,7 +238,6 @@ void test_qubit_operations()
 
     std::cout << "Finished test_qubit_operations...\n" << std::endl;
 }
-
 
 /**
  * @brief Tests the different contructors of QSimulator
@@ -352,20 +351,20 @@ void test_qsim_profile_measure()
     // 99.9% confidence interval for global state measurements
     auto state_range_true = [](const aqs::QSimulator& qs, int state, int rep_count) {
         float prob_true = qs.state_probability(state);
-        float std_dev = sqrtf(prob_true * (1.f - prob_true));
+        float std_dev = std::sqrt(prob_true * (1.f - prob_true));
 
         int expected = rep_count * prob_true;
-        int diff = sqrtf(rep_count) * 3.291f * std_dev;
+        int diff = std::sqrt(rep_count) * 3.291f * std_dev;
 
         return std::pair<int, int>(expected - diff , expected + diff);
     };
 
     // 99.9% confidence interval for qubit measurements
     auto qubit_range_true = [](const aqs::QState& q, int rep_count) {
-        float std_dev = sqrtf(q.probability_true() * q.probability_false());
+        float std_dev = std::sqrt(q.probability_true() * q.probability_false());
 
         int expected = rep_count * q.probability_true();
-        int diff = sqrtf(rep_count) * 3.291f * std_dev;
+        int diff = std::sqrt(rep_count) * 3.291f * std_dev;
 
         return std::pair<int, int>(expected - diff , expected + diff);
     };
@@ -511,8 +510,8 @@ void test_qsim_gates()
     qs.qubit(3) = QState::zero();
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Phase(2, atanf(0.75f));
-    qc << aqs::Phase(3, atanf(1.f));
+    qc << aqs::Phase(2, std::atan(0.75f));
+    qc << aqs::Phase(3, std::atan(1.f));
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0000), af::cfloat{0.6f, 0.f}, diff));
@@ -520,7 +519,7 @@ void test_qsim_gates()
     assert(cfequal(qs.state(0b0010), af::cfloat{-0.48f, 0.64f}, diff));
     assert(cfequal(qs.state(0b0011), af::cfloat{0.f, 0.f}, diff));
 
-    std::vector<aqs::Phase> phasegates = { aqs::Phase{2 , atanf(.75f) } , aqs::Phase{3 , atan(1.f)} };
+    std::vector<aqs::Phase> phasegates = { aqs::Phase{2 , std::atan(.75f) } , aqs::Phase{3 , std::atan(1.f)} };
     qc.reset_circuit();
     qs.generate_global_state();
     qc << phasegates;
@@ -651,8 +650,8 @@ void test_qsim_gates()
     qs.qubit(3) = aqs::QState({0.6f, 0.0f} , {0.0f, 0.8f});
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Control_Phase(0, 2, atanf(0.75f));
-    qc << aqs::Control_Phase(1, 3, atanf(0.75f));
+    qc << aqs::Control_Phase(0, 2, std::atan(0.75f));
+    qc << aqs::Control_Phase(1, 3, std::atan(0.75f));
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0100), af::cfloat{0.36f, 0.f}, diff));
@@ -816,7 +815,7 @@ void test_qsim_gates()
     
     assert(af::allTrue<bool>(reference.global_state() == qs.global_state()));
 
-    float rsqrt2 = std::sqrt(1.0 / 2.0);
+    float rsqrt2 = std::sqrt(1.0f / 2.0f);
     reference.qubit(0) = aqs::QState::one();
     reference.qubit(3) = aqs::QState::one();
     reference.qubit(1) = aqs::QState{ rsqrt2 , rsqrt2 };

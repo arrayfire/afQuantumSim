@@ -129,14 +129,14 @@ void QState::force_normalize()
     if (mag2 == 0.f)
         throw std::invalid_argument{"Cannot normalize a null state"};
     
-    float mag = sqrtf(mag2);
+    float mag = std::sqrt(mag2);
     
     state_[0] = state_[0] / mag;
     state_[1] = state_[1] / mag;
 }
 
 QCircuit::QCircuit(uint32_t qubit_count)
-    :circuit_(af::identity(fast_pow2(qubit_count), fast_pow2(qubit_count), c32)), representation_{}, qubits_{qubit_count}
+    :gate_list_{}, circuit_(af::identity(fast_pow2(qubit_count), fast_pow2(qubit_count), c32)), representation_{}, qubits_{qubit_count}
 {
     if (qubit_count < 1)
         throw std::invalid_argument{"Circuit must contain at least 1 qubit"};
@@ -157,7 +157,22 @@ void QCircuit::Measure(uint32_t qubit)
 
 void QCircuit::reset_circuit()
 {
+    cached_index_ = 0;
+    gate_list_.clear();
     circuit_ = af::identity(state_count(), state_count(), c32);
+}
+
+void QCircuit::generate_circuit() const
+{
+    if (cached_index_ != gate_list_.size())
+    {
+        for (std::size_t i = cached_index_; i < gate_list_.size(); ++i)
+        {
+            const auto& gate = *(gate_list_[i]);
+            gate(const_cast<QCircuit&>(*this));
+        }
+        cached_index_ = gate_list_.size();
+    }
 }
 
 QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const QNoise& noise_generator)
@@ -188,6 +203,7 @@ void QSimulator::simulate(const QCircuit& circuit)
 {
     if (circuit.qubit_count() != qubits_)
         throw std::invalid_argument{"Number of qubit states and circuit input qubit states do not match"};
+    circuit.generate_circuit();
     global_state_ = af::matmul(circuit.circuit(), global_state_);
 }
 
@@ -219,9 +235,9 @@ bool QSimulator::measure(uint32_t qubit)
     bool measurement = val < prob1;
 
     if (measurement)
-        global_state_ = states1 / sqrtf(prob1);
+        global_state_ = states1 / std::sqrt(prob1);
     else
-        global_state_ = states0 / sqrt(1.f - prob1);
+        global_state_ = states0 / std::sqrt(1.f - prob1);
 
     return measurement;
 }
@@ -358,6 +374,7 @@ QCircuit& X::operator()(QCircuit& qc) const
     return qc;
 }
 
+/*
 template<>
 QCircuit& operator<<<X>(QCircuit& qc, const std::vector<X>& gates)
 {
@@ -395,6 +412,7 @@ QCircuit& operator<<<X>(QCircuit& qc, const std::vector<X>& gates)
 
     return qc;
 }
+*/
 
 std::string X::to_string() const
 {
@@ -424,6 +442,7 @@ QCircuit& Y::operator()(QCircuit& qc) const
     return qc;
 }
 
+/*
 template<>
 QCircuit& operator<<<Y>(QCircuit& qc, const std::vector<Y>& gates)
 {
@@ -461,6 +480,7 @@ QCircuit& operator<<<Y>(QCircuit& qc, const std::vector<Y>& gates)
 
     return qc;
 }
+*/
 
 std::string Y::to_string() const
 {
@@ -490,6 +510,7 @@ QCircuit& Z::operator()(QCircuit& qc) const
     return qc;
 }
 
+/*
 template<>
 QCircuit& operator<<<Z>(QCircuit& qc, const std::vector<Z>& gates)
 {
@@ -527,6 +548,7 @@ QCircuit& operator<<<Z>(QCircuit& qc, const std::vector<Z>& gates)
 
     return qc;
 }
+*/
 
 std::string Z::to_string() const
 {
@@ -588,6 +610,7 @@ QCircuit& Hadamard::operator()(QCircuit& qc) const
 */
 }
 
+/*
 template<>
 QCircuit& operator<<<Hadamard>(QCircuit& qc, const std::vector<Hadamard>& gates)
 {
@@ -625,6 +648,7 @@ QCircuit& operator<<<Hadamard>(QCircuit& qc, const std::vector<Hadamard>& gates)
 
     return qc;
 }
+*/
 
 std::string Hadamard::to_string() const
 {
@@ -654,6 +678,7 @@ QCircuit& Phase::operator()(QCircuit& qc) const
     return qc;
 }
 
+/*
 template<>
 QCircuit& operator<<<Phase>(QCircuit& qc, const std::vector<Phase>& gates)
 {
@@ -696,6 +721,7 @@ QCircuit& operator<<<Phase>(QCircuit& qc, const std::vector<Phase>& gates)
 
     return qc;
 }
+*/
 
 std::string Phase::to_string() const
 {
@@ -710,6 +736,7 @@ std::string Phase::to_string() const
     else
         return "Phase," + std::to_string(target_qubit) + ";";
 }
+
 
 QCircuit& Swap::operator()(QCircuit& qc) const
 {
@@ -1183,7 +1210,7 @@ static std::string update_circuit_representation(const std::string& circuit_stri
 static std::string update_ctrl_circuit_representation(const std::string& circuit_string, uint32_t control, uint32_t target);
 
 CircuitGate::CircuitGate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name)
-    : internal_circuit(circuit_.circuit()), representation{},
+    : internal_circuit(circuit_), representation{},
         qubit_count{circuit_.qubit_count()}, target_qubit_begin{target_qubit_begin_}
 {
     if (name == "")
@@ -1224,7 +1251,9 @@ QCircuit& CircuitGate::operator()(QCircuit& qc) const
     const uint32_t gate_states = 1 << gate_qubits;
     const uint32_t gate_qubit_begin = target_qubit_begin;
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
-    const af::array& gate = internal_circuit;
+
+    internal_circuit.generate_circuit();
+    const af::array& gate = internal_circuit.circuit();
 
     uint32_t rem_count = 1 << (circuit_qubits - gate_qubits);
     
@@ -1261,7 +1290,7 @@ QCircuit& CircuitGate::operator()(QCircuit& qc) const
 }
 
 ControlCircuitGate::ControlCircuitGate(const QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name)
-        : internal_circuit(circuit_.circuit()), representation{},
+        : internal_circuit(circuit_), representation{},
           qubit_count{circuit_.qubit_count()}, control_qubit{control_qubit_}, target_qubit_begin{target_qubit_begin_}
 {
     if (name == "")
@@ -1303,7 +1332,9 @@ QCircuit& ControlCircuitGate::operator()(QCircuit& qc) const
     const uint32_t gate_states = 1 << gate_qubits;
     const uint32_t gate_qubit_begin = target_qubit_begin;
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
-    const af::array& gate = internal_circuit;
+
+    internal_circuit.generate_circuit();
+    const af::array& gate = internal_circuit.circuit();
 
     uint32_t rem_count = 1 << (circuit_qubits - gate_qubits - 1);
     
@@ -1377,8 +1408,8 @@ QState Z_op(const QState& state)
 QState RotateX_op(const QState& state, float angle)
 {
     af::cfloat temp[2];
-    temp[0] = state[0] * cosf(angle / 2.f) + state[1] * af::cfloat{ 0.f , -sinf(angle / 2.f) };
-    temp[1] = state[0] * af::cfloat{ 0.f , -sinf(angle / 2.f) } + state[1] * cosf(angle / 2.f);
+    temp[0] = state[0] * std::cos(angle / 2.f) + state[1] * af::cfloat{ 0.f , -std::sin(angle / 2.f) };
+    temp[1] = state[0] * af::cfloat{ 0.f , -std::sin(angle / 2.f) } + state[1] * std::cos(angle / 2.f);
 
     return { { temp[0].real , temp[0].imag } , { temp[1].real , temp[1].imag} };
 }
@@ -1386,8 +1417,8 @@ QState RotateX_op(const QState& state, float angle)
 QState RotateY_op(const QState& state, float angle)
 {
     af::cfloat temp[2];
-    temp[0] = state[0] * cosf(angle / 2.f) + state[1] * -sinf(angle / 2.f);
-    temp[1] = state[0] * sinf(angle / 2.f) + state[1] *  cosf(angle / 2.f);
+    temp[0] = state[0] * std::cos(angle / 2.f) + state[1] * -std::sin(angle / 2.f);
+    temp[1] = state[0] * std::sin(angle / 2.f) + state[1] *  std::cos(angle / 2.f);
 
     return { { temp[0].real , temp[0].imag } , { temp[1].real , temp[1].imag} };
 }
@@ -1395,8 +1426,8 @@ QState RotateY_op(const QState& state, float angle)
 QState RotateZ_op(const QState& state, float angle)
 {
     af::cfloat temp[2];
-    temp[0] = state[0] * af::cfloat{cosf(angle / 2.f) , -sinf(angle / 2.f)} + state[1] * 0.f;
-    temp[1] = state[0] * 0.f + state[1] * af::cfloat{cosf(angle / 2.f) , sinf(angle / 2.f)};
+    temp[0] = state[0] * af::cfloat{ std::cos(angle / 2.f) , -std::sin(angle / 2.f)} + state[1] * 0.f;
+    temp[1] = state[0] * 0.f + state[1] * af::cfloat{ std::cos(angle / 2.f) , std::sin(angle / 2.f)};
 
     return { { temp[0].real , temp[0].imag } , { temp[1].real , temp[1].imag} };
 }
@@ -1414,7 +1445,7 @@ QState Phase_op(const QState& state, float angle)
 {
     af::cfloat temp[2];
     temp[0] = state[0] * 1.f  + state[1] * 0.f;
-    temp[1] = state[0] * 0.f  + state[1] * af::cfloat{cosf(angle) , sinf(angle)};
+    temp[1] = state[0] * 0.f  + state[1] * af::cfloat{std::cos(angle) , std::sin(angle)};
 
     return { { temp[0].real , temp[0].imag } , { temp[1].real , temp[1].imag} };
 }

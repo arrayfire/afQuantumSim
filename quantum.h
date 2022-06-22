@@ -12,6 +12,7 @@
 
 #include <array>
 #include <cassert>
+#include <memory>
 #include <tuple>
 #include <vector>
 
@@ -26,6 +27,11 @@ namespace aqs
 
 static const float pi = 3.14159265358979323846f;
 static constexpr uint32_t max_qubit_count = 30;
+
+class QGate;
+class QState;
+class QCircuit;
+class QSimulator;
 
 /**
  * @brief Class managing the behaviour of one qubit
@@ -61,7 +67,6 @@ public:
      * @param states array with the complex number state |0> in the [0] entry and |1> in the [1] entry
      */
     QState(const std::array<std::complex<float>, 2>& states);
-
 
     /**
      * @brief Create a qubit state object given its polar coordinates
@@ -220,7 +225,14 @@ public:
     af::array& circuit() noexcept { return circuit_; }
     const af::array& circuit() const noexcept { return circuit_; }
 
+    auto& gate_list() noexcept { return gate_list_; }
+    const auto& gate_list() const noexcept { return gate_list_; }
+
+    friend class QSimulator;
+
     const std::string& representation() const noexcept { return representation_; }
+
+    void generate_circuit() const;
 
     /**
      * @brief Cleans the circuit removing all gates
@@ -229,9 +241,11 @@ public:
     void reset_circuit();
 
 private:
-    af::array circuit_;
+    std::vector<std::shared_ptr<QGate>> gate_list_;
+    mutable af::array circuit_;
     std::string representation_;
     uint32_t qubits_{};
+    mutable std::size_t cached_index_ = 0;
 };
 
 class QNoise
@@ -397,7 +411,9 @@ QCircuit& operator<<(QCircuit& qc, const T& gate)
 {
     static_assert(std::is_base_of<QGate, T>::value, "Gate must inherit from QGate class");
     qc.representation_.append(gate.to_string());
-    return gate(qc);
+    //return gate(qc);
+    qc.gate_list().push_back(std::make_shared<T>(gate));
+    return qc;
 }
 
 template<typename T>
@@ -407,7 +423,8 @@ QCircuit& operator<<(QCircuit& qc, const std::vector<T>& gates)
     for (const auto& gate : gates)
     {
         qc.representation_.append(gate.to_string());
-        gate(qc);
+        //gate(qc);
+        qc.gate_list().push_back(std::make_shared<T>(gate));
     }
     return qc;
 }
@@ -433,8 +450,10 @@ public:
 
 using Not = X;
 
+/*
 template<>
 QCircuit& operator<<<X>(QCircuit& qc, const std::vector<X>& gates);
+*/
 
 class Y : public QGate
 {
@@ -445,8 +464,10 @@ public:
     uint32_t target_qubit;
 };
 
+/*
 template<>
 QCircuit& operator<<<Y>(QCircuit& qc, const std::vector<Y>& gates);
+*/
 
 class Z : public QGate
 {
@@ -457,9 +478,10 @@ public:
     uint32_t target_qubit;
 };
 
-
+/*
 template<>
 QCircuit& operator<<<Z>(QCircuit& qc, const std::vector<Z>& gates);
+*/
 
 class Hadamard : public QGate
 {
@@ -470,8 +492,10 @@ public:
     uint32_t target_qubit;
 };
 
+/*
 template<>
 QCircuit& operator<<<Hadamard>(QCircuit& qc, const std::vector<Hadamard>& gates);
+*/
 
 class Phase : public QGate
 {
@@ -483,8 +507,10 @@ public:
     float angle;
 };
 
+/*
 template<>
 QCircuit& operator<<<Phase>(QCircuit& qc, const std::vector<Phase>& gates);
+*/
 
 class Swap : public QGate
 {
@@ -601,7 +627,7 @@ public:
     CircuitGate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name = "");
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
-    af::array internal_circuit;
+    QCircuit internal_circuit;
     std::string representation;
     uint32_t qubit_count;
     uint32_t target_qubit_begin;
@@ -613,7 +639,7 @@ public:
     ControlCircuitGate(const QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name = "");
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
-    af::array internal_circuit;
+    QCircuit internal_circuit;
     std::string representation;
     uint32_t qubit_count;
     uint32_t control_qubit;

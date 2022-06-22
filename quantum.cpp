@@ -11,6 +11,7 @@
 
 #include <random>
 #include <stdexcept>
+#include <unordered_map>
 
 /*
     Pauli X matrix
@@ -63,9 +64,42 @@ static std::random_device dv;
 static std::mt19937 rd_gen{dv()};
 
 static std::uniform_real_distribution<float> lin_dist(0.0f, 1.0f);
+static std::unordered_map<uint64_t, af::array> cached_arrays;
 
 namespace aqs
 {
+
+enum class cache_array_type : int
+{
+    iota, 
+};
+
+static uint64_t gen_cache_array_index(cache_array_type arr_type, int32_t size)
+{
+    return (static_cast<int64_t>(arr_type) << 32) | size;
+}
+
+static af::array gen_array(uint64_t identifier)
+{
+    int32_t size = static_cast<int32_t>(identifier & static_cast<uint64_t>(~0));
+    cache_array_type type = static_cast<cache_array_type>(identifier >> 32);
+
+    switch (type)
+    {
+    case cache_array_type::iota:
+        return af::iota(size, 1, s32);
+    default:
+        break;
+    }
+}
+
+static const af::array& get_cached_array(uint64_t identifier)
+{
+    auto iter = cached_arrays.find(identifier);
+    if (iter == cached_arrays.end())
+        return cached_arrays[identifier] = gen_array(identifier);
+    return iter->second;
+}
 
 QState::QState(const std::complex<float>& zeroState, const std::complex<float>& oneState)
     :state_{ af::cfloat{zeroState.real(), zeroState.imag()} , af::cfloat{oneState.real(), oneState.imag()}}

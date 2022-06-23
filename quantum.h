@@ -179,6 +179,20 @@ public:
      */
     static const QState& one () { const static QState  one_state{ 0.0f, 1.0f }; return  one_state; };
 
+    /**
+     * @brief Returns a qubit in plus |+> state (1/sqrt(2) |0> + 1/sqrt(2) |1>)
+     * 
+     * @return const QState& 
+     */
+    static const QState& plus() { const static QState plus_state{ 0.70710678118f , 0.70710678118f }; return plus_state; }
+
+    /**
+     * @brief Returns a qubit in minus |-> state (1/sqrt(2) |0> - 1/sqrt(2) |1>)
+     * 
+     * @return const QState& 
+     */
+    static const QState& minus() { const static QState minus_state{ 0.70710678118f , -0.70710678118f }; return minus_state; }
+
 private:
     af::cfloat state_[2] { { 1.0f , 0.0f } , { 0.0f , 0.0f } };
 
@@ -233,7 +247,7 @@ public:
 
     const std::string& representation() const noexcept { return representation_; }
 
-    void generate_circuit() const;
+    void generate_circuit();
 
     /**
      * @brief Cleans the circuit removing all gates
@@ -243,10 +257,10 @@ public:
 
 private:
     std::vector<std::shared_ptr<QGate>> gate_list_;
-    mutable af::array circuit_;
+    af::array circuit_;
     std::string representation_;
-    uint32_t qubits_{};
-    mutable std::size_t cached_index_ = 0;
+    uint32_t qubits_ = 0;
+    std::size_t cached_index_ = 0;
 };
 
 class QNoise
@@ -451,11 +465,6 @@ public:
 
 using Not = X;
 
-/*
-template<>
-QCircuit& operator<<<X>(QCircuit& qc, const std::vector<X>& gates);
-*/
-
 class Y : public QGate
 {
 public:
@@ -464,11 +473,6 @@ public:
     std::string to_string() const override;
     uint32_t target_qubit;
 };
-
-/*
-template<>
-QCircuit& operator<<<Y>(QCircuit& qc, const std::vector<Y>& gates);
-*/
 
 class Z : public QGate
 {
@@ -479,11 +483,6 @@ public:
     uint32_t target_qubit;
 };
 
-/*
-template<>
-QCircuit& operator<<<Z>(QCircuit& qc, const std::vector<Z>& gates);
-*/
-
 class Hadamard : public QGate
 {
 public:
@@ -492,11 +491,6 @@ public:
     std::string to_string() const override;
     uint32_t target_qubit;
 };
-
-/*
-template<>
-QCircuit& operator<<<Hadamard>(QCircuit& qc, const std::vector<Hadamard>& gates);
-*/
 
 class Phase : public QGate
 {
@@ -507,11 +501,6 @@ public:
     uint32_t target_qubit;
     float angle;
 };
-
-/*
-template<>
-QCircuit& operator<<<Phase>(QCircuit& qc, const std::vector<Phase>& gates);
-*/
 
 class Swap : public QGate
 {
@@ -628,7 +617,7 @@ public:
     CircuitGate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name = "");
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
-    QCircuit internal_circuit;
+    mutable QCircuit internal_circuit;
     std::string representation;
     uint32_t qubit_count;
     uint32_t target_qubit_begin;
@@ -640,7 +629,7 @@ public:
     ControlCircuitGate(const QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name = "");
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
-    QCircuit internal_circuit;
+    mutable QCircuit internal_circuit;
     std::string representation;
     uint32_t qubit_count;
     uint32_t control_qubit;

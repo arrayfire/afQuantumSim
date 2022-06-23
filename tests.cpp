@@ -421,6 +421,7 @@ void test_qsim_gates()
     qs.generate_global_state();
     qc << aqs::X(2);
     qc << aqs::X(3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
 
@@ -428,6 +429,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qs.generate_global_state();
     qc << xgates;
+    qc.generate_circuit();
     qs.simulate(qc);
     assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
 
@@ -439,6 +441,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Y(2);
     qc << aqs::Y(3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
 
@@ -446,6 +449,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qs.generate_global_state();
     qc << ygates;
+    qc.generate_circuit();
     qs.simulate(qc);
     assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
 
@@ -457,6 +461,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Z(2);
     qc << aqs::Z(3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert((qs.state(0b0001) == af::cfloat{-1.0f, 0.f}));
 
@@ -464,6 +469,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qs.generate_global_state();
     qc << zgates;
+    qc.generate_circuit();
     qs.simulate(qc);
     assert((qs.state(0b0001) == af::cfloat{-1.0f, 0.f}));
 
@@ -475,6 +481,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Not(2);
     qc << aqs::Not(3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert((qs.state(0b0010) == af::cfloat{1.0f, 0.f}));
 
@@ -486,6 +493,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Hadamard(2);
     qc << aqs::Hadamard(3);
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0000), af::cfloat{0.5f, 0.f}, diff));
@@ -497,6 +505,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qs.generate_global_state();
     qc << hgates;
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0000), af::cfloat{0.5f, 0.f}, diff));
@@ -512,6 +521,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Phase(2, std::atan(0.75f));
     qc << aqs::Phase(3, std::atan(1.f));
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0000), af::cfloat{0.6f, 0.f}, diff));
@@ -523,6 +533,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qs.generate_global_state();
     qc << phasegates;
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0000), af::cfloat{0.6f, 0.f}, diff));
@@ -540,6 +551,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Xor(0, 2);
     qc << aqs::Xor(1, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
@@ -557,6 +569,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Swap(0, 2);
     qc << aqs::Swap(1, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0001), af::cfloat{0.0f, 0.48f}, diff));
@@ -574,6 +587,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << Control_Not(0, 2);
     qc << Control_Not(1, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
@@ -591,6 +605,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Control_X(0, 2);
     qc << aqs::Control_X(1, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
     assert(cfequal(qs.state(0b0101), af::cfloat{0.36f, 0.0f}, diff));
@@ -603,6 +618,7 @@ void test_qsim_gates()
     qs.generate_global_state();
     qc.reset_circuit();
     qc << cxgates;
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
     assert(cfequal(qs.state(0b0101), af::cfloat{0.36f, 0.0f}, diff));
@@ -619,6 +635,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Control_Y(0, 2);
     qc << aqs::Control_Y(1, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
    
     assert(cfequal(qs.state(0b0100), af::cfloat{0.48f, 0.0f}, diff));
@@ -636,6 +653,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Control_Z(0, 2);
     qc << aqs::Control_Z(1, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{0.36f, 0.0f}, diff));
     assert(cfequal(qs.state(0b0101), af::cfloat{0.0f, -0.48f}, diff));
@@ -652,6 +670,7 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Control_Phase(0, 2, std::atan(0.75f));
     qc << aqs::Control_Phase(1, 3, std::atan(0.75f));
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0100), af::cfloat{0.36f, 0.f}, diff));
@@ -669,17 +688,20 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Or(0, 1, 2);
     qc << aqs::Or(1, 0, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0111), af::cfloat{1.0f, 0.0f}, diff));
 
     qs.qubit(0) = QState::one();
     qs.generate_global_state();
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b1111), af::cfloat{1.0f, 0.0f}, diff));
     
     qs.qubit(0) = QState::zero();
     qs.qubit(1) = QState::zero();
     qs.generate_global_state();
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0000), af::cfloat{1.0f, 0.0f}, diff));
 
@@ -693,17 +715,20 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::And(0, 1, 2);
     qc << aqs::And(1, 0, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{1.0f, 0.0f}, diff));
 
     qs.qubit(0) = QState::one();
     qs.generate_global_state();
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b1111), af::cfloat{1.0f, 0.0f}, diff));
     
     qs.qubit(0) = QState::zero();
     qs.qubit(1) = QState::zero();
     qs.generate_global_state();
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0000), af::cfloat{1.0f, 0.0f}, diff));
 
@@ -716,6 +741,7 @@ void test_qsim_gates()
     qs.generate_global_state();
     qc.reset_circuit();
     qc << aqs::Control_Swap(0, 2, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
@@ -726,6 +752,7 @@ void test_qsim_gates()
     qs.generate_global_state();
     qc.reset_circuit();
     qc << aqs::Control_Swap(1, 2, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
 
     assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
@@ -743,17 +770,20 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::CControl_Not(0, 1, 2);
     qc << aqs::CControl_Not(1, 0, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{1.0f, 0.0f}, diff));
 
     qs.qubit(0) = QState::one();
     qs.generate_global_state();
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b1111), af::cfloat{1.0f, 0.0f}, diff));
     
     qs.qubit(0) = QState::zero();
     qs.qubit(1) = QState::zero();
     qs.generate_global_state();
+    qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0000), af::cfloat{1.0f, 0.0f}, diff));
 
@@ -774,6 +804,8 @@ void test_qsim_gates()
     ref << aqs::Control_Z(0, 2);
     ref << aqs::Control_Swap(0, 2, 3);
 
+    qc.generate_circuit();
+    ref.generate_circuit();
     assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
 
     // Custom Gate
@@ -792,6 +824,8 @@ void test_qsim_gates()
     ref << aqs::X(2);
     ref << aqs::Swap(1, 2);
 
+    qc.generate_circuit();
+    ref.generate_circuit();
     assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
 
     // CHadamard Gate
@@ -811,6 +845,8 @@ void test_qsim_gates()
     qc.reset_circuit();
     qc << aqs::Control_Hadamard(0, 1);
     qc << aqs::Control_Hadamard(3, 2);
+
+    qc.generate_circuit();
     qs.simulate(qc);
     
     assert(af::allTrue<bool>(reference.global_state() == qs.global_state()));
@@ -827,6 +863,8 @@ void test_qsim_gates()
     qs.qubit(1) = aqs::QState::zero();
     qs.qubit(2) = aqs::QState::one();
     qs.generate_global_state();
+
+    qc.generate_circuit();
     qs.simulate(qc);
     
     assert(af::allTrue<bool>(reference.global_state() == qs.global_state()));

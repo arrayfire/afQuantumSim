@@ -196,14 +196,14 @@ void QCircuit::reset_circuit()
     circuit_ = af::identity(state_count(), state_count(), c32);
 }
 
-void QCircuit::generate_circuit() const
+void QCircuit::generate_circuit()
 {
     if (cached_index_ != gate_list_.size())
     {
         for (std::size_t i = cached_index_; i < gate_list_.size(); ++i)
         {
             const auto& gate = *(gate_list_[i]);
-            gate(const_cast<QCircuit&>(*this));
+            gate(*this);
         }
         cached_index_ = gate_list_.size();
     }
@@ -237,7 +237,6 @@ void QSimulator::simulate(const QCircuit& circuit)
 {
     if (circuit.qubit_count() != qubits_)
         throw std::invalid_argument{"Number of qubit states and circuit input qubit states do not match"};
-    circuit.generate_circuit();
     global_state_ = af::matmul(circuit.circuit(), global_state_);
 }
 
@@ -591,6 +590,7 @@ std::string Z::to_string() const
 
 QCircuit& Hadamard::operator()(QCircuit& qc) const
 {
+
     const auto qubits = qc.qubit_count();
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
@@ -621,6 +621,7 @@ QCircuit& Hadamard::operator()(QCircuit& qc) const
     temp.eval();
     auto temp2 = af::tile(af::array(2, 1, masks_val), states);
     temp2.eval();
+    auto column_indices = temp | temp2;
 
     const float sqrt2 = 0.70710678118f;
     auto values = af::constant(af::cfloat{ sqrt2 , 0.f }, states * 2);
@@ -1300,8 +1301,9 @@ QCircuit& CircuitGate::operator()(QCircuit& qc) const
 
     af::array gate_values = gate(n * gate_states + m);
 
-    jj.eval();
+    //jj.eval();
     //af_print(ii.as(f32) * af::constant(16, len, f32)+ jj.as(f32));
+    af_print(ii * circuit_states + jj);
     gate_matrix(ii * circuit_states + jj) = gate_values;
 
     /*

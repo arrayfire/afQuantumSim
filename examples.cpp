@@ -41,6 +41,7 @@ void quantum_classic_xor_example()
     std::cout << "XOR when q[0] = 0\nInitial State:\n";
     print_global_state(qs);
 
+    qc.generate_circuit();
     qs.simulate(qc);
 
     std::cout << "Output State:\n";
@@ -96,6 +97,7 @@ void quantum_classic_or_example()
     //std::cout << "Initial State:\n";
     //print_global_state(qc);
 
+    qc.generate_circuit();
     qs.simulate(qc);
 
     //std::cout << "Output State:\n";
@@ -117,6 +119,7 @@ void quantum_classic_or_example()
     //std::cout << "Initial State:\n";
     //print_global_state(qc);
 
+    qc.generate_circuit();
     qs.simulate(qc);
 
     //std::cout << "Output State:\n";
@@ -166,6 +169,7 @@ void quantum_2bit_adder_example()
         qs.generate_global_state();
         std::cout << "Input: " << binary_string(qs.peek_measure_all(), 7) << '\n';
 
+        qc.generate_circuit();
         qs.simulate(qc);
         auto result = qs.peek_measure_all();
         std::string r = binary_string(result, 7);
@@ -199,6 +203,7 @@ void quantum_entanglement_example()
     // Entagle 2 qubits
     qc << Hadamard(0);
     qc << Control_Not(0, 1);
+    qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "State of entangled q[0] and q[1]:\n";
     aqs::print_global_state(qs);
@@ -206,8 +211,10 @@ void quantum_entanglement_example()
 
     std::cout << "\n*** Entanglement of 3 qubits ***\n\n";
     //Entangle 3 qubits
+    qc.generate_circuit();
     qs.generate_global_state();
     qc << Control_Not(0, 2);
+    qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "State of entangled q[0], q[1], and q[2]:\n";
     aqs::print_global_state(qs);
@@ -217,6 +224,7 @@ void quantum_entanglement_example()
     //Entangle 4 qubits
     qs.generate_global_state();
     qc << Control_Not(0, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "State of entangled q[0], q[1], q[2], and q[3]:\n";
     aqs::print_global_state(qs);
@@ -230,6 +238,7 @@ void quantum_entanglement_example()
     qc << Hadamard(2);
     qc << Control_Not(0, 1);
     qc << Control_Not(2, 3);
+    qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "State of entangled (q[0], q[1]), and (q[2], q[3]):\n";
     aqs::print_global_state(qs);
@@ -256,6 +265,7 @@ void quantum_superposition_example()
     // Put qubits 0 and 2 into superposition
     qc << Hadamard(0);
     qc << Hadamard(2);
+    qc.generate_circuit();
     qs.simulate(qc);
 
     std::cout << "Global State with q[0] and q[2] in superposition using Hadamard:\n";
@@ -266,6 +276,7 @@ void quantum_superposition_example()
     qs.qubit(1) = aqs::QState{{0.0f, 0.6f} , { 0.8f, 0.0f }};
     qs.qubit(3) = aqs::QState::one();
     qs.generate_global_state();
+    qc.generate_circuit();
     qs.simulate(qc);
 
     std::cout << "Global State with q[0] and q[2] in superposition using Hadamard, q[1] = 0.6i|0> + 0.8|1>, and q[3] = |1>:\n";
@@ -294,6 +305,7 @@ void quantum_grover_example()
     std::cout << grover_search_gate.representation() << std::endl;
     qc << CircuitGate(grover_search_gate, 0);
 
+    qc.generate_circuit();
     qs.simulate(qc);
 
     std::cout << "Searching for <" << marked_solution << "> in " << search_space << " numbers using " << iterations
@@ -346,6 +358,7 @@ void quantum_fourier_transform_example()
     aqs::QCircuit fourier_gate = aqs::fourier_transform(qubits);
     qc << CircuitGate(fourier_gate, 0);
 
+    qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "Output State (Fourier Basis):\n";
     aqs::print_global_state(qs);
@@ -354,6 +367,7 @@ void quantum_fourier_transform_example()
     qc.reset_circuit();
     qc << CircuitGate(inverse_fourier_gate, 0);
 
+    qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "Output State after Inverse Fourier (Computational Basis):\n";
     print_global_state(qs);
@@ -388,12 +402,15 @@ void quantum_phase_estimation_example()
     for (int i = 0; i < qcount; ++i)
         qc << Control_Phase(i, qcount, angle * static_cast<float>(1 << (qcount - 1 - i)));
 
+    qc.generate_circuit();
     qs.simulate(qc);
     //std::cout << "Phase shifted state:\n";
     //aqs::print_global_state(qs);
     qs.generate_global_state();
 
     qc << CircuitGate(aqs::inverse_fourier_transform(qcount), 0, "QFT†");
+
+    qc.generate_circuit();
     qs.simulate(qc);
     //std::cout << "Phase estimation state output: ";
     //aqs::print_global_state(qs);
@@ -484,6 +501,9 @@ void quantum_shor_algorithm()
     std::cout << "Generating Global State...\n";
     qs.generate_global_state();
 
+    std::cout << "Generating circuit...\n";
+    qc.generate_circuit();
+
     std::cout << "Executing Simulation...\n";
     qs.simulate(qc);
 
@@ -549,7 +569,6 @@ void quantum_shor_algorithm()
     }
 
     aqs::print_circuit_text_image(qc, qs);
-    
 
     //std::ofstream file;
     //file.open("out.txt");
@@ -593,6 +612,7 @@ void quantum_constant_addition()
     //std::cout << "Input state:\n";
     //aqs::print_global_state(qs);
 
+    qc.generate_circuit();
     qs.simulate(qc);
 
     //std::cout << "Output state:\n";
@@ -649,6 +669,8 @@ void quantum_two_addition()
 
         qs.generate_global_state();
 
+        qc.generate_circuit();
+
         qs.simulate(qc);
 
         int out_val = reverse_binary(qs.peek_measure_all() & ((1 << (input + 1)) - 1), input + 1);
@@ -682,7 +704,9 @@ void quantum_counting()
     
     qc << CircuitGate(aqs::inverse_fourier_transform(output_count), 0);
 
+    qc.generate_circuit();
     qs.simulate(qc);
+
     aqs::print_global_state(qs);
 
     //std::cout << qc.representation();

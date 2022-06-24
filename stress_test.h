@@ -10,7 +10,14 @@
 
 #include "quantum.h"
 
-class X_old : public aqs::QGate
+class QGate_old
+{
+public:
+    virtual aqs::QCircuit& operator()(aqs::QCircuit& qc) const = 0;
+    virtual std::string to_string() const = 0;
+};
+
+class X_old : QGate_old
 {
 public:
     X_old(uint32_t qubit_) : target_qubit{qubit_} {}
@@ -45,7 +52,7 @@ public:
     }
 };
 
-class Y_old : public aqs::QGate
+class Y_old : QGate_old
 {
 public:
     Y_old(uint32_t qubit_) : target_qubit{qubit_} {}
@@ -80,7 +87,7 @@ public:
     }
 };
 
-class Z_old : public aqs::QGate
+class Z_old : QGate_old
 {
 public:
     Z_old(uint32_t qubit_) : target_qubit{qubit_} {}
@@ -115,7 +122,7 @@ public:
     }
 };
 
-class Phase_old : public aqs::QGate
+class Phase_old : QGate_old
 {
 public:
     Phase_old(uint32_t qubit_, float angle_) : target_qubit{qubit_} , angle{angle_} {}
@@ -146,7 +153,7 @@ public:
     float angle{};
 };
 
-class Swap_old : public aqs::QGate
+class Swap_old : QGate_old
 {
 public:
     Swap_old(int target_qubit_A_, int target_qubit_B_) : target_qubit_A{target_qubit_A_} , target_qubit_B{target_qubit_B_} {}
@@ -196,7 +203,7 @@ public:
     int target_qubit_A{}, target_qubit_B{};
 };
 
-class Hadamard_old : public aqs::QGate
+class Hadamard_old : QGate_old
 {
 public:
     Hadamard_old(uint32_t qubit_) : target_qubit{qubit_} {}
@@ -231,7 +238,7 @@ public:
     }
 };
 
-class Control_X_old : public aqs::QGate
+class Control_X_old : QGate_old
 {
 public:
     Control_X_old(uint32_t control, uint32_t target) : control_qubit{control} , target_qubit{target} {}
@@ -273,7 +280,7 @@ public:
     uint32_t control_qubit{};
 };
 
-class Control_Y_old : public aqs::QGate
+class Control_Y_old : QGate_old
 {
 public:
     Control_Y_old(uint32_t control, uint32_t target) : control_qubit{control} , target_qubit{target} {}
@@ -318,7 +325,7 @@ public:
     uint32_t control_qubit{};
 };
 
-class Control_Z_old : public aqs::QGate
+class Control_Z_old : QGate_old
 {
 public:
     Control_Z_old(uint32_t control, uint32_t target) : control_qubit{control} , target_qubit{target} {}
@@ -361,7 +368,7 @@ public:
     uint32_t control_qubit{};
 };
 
-class Control_Phase_old : public aqs::QGate
+class Control_Phase_old : QGate_old
 {
 public:
     Control_Phase_old(uint32_t control, uint32_t target, float angle_) : control_qubit{control} , target_qubit{target} , angle{angle_} {}
@@ -384,7 +391,7 @@ public:
         int mask = control_mask | target_mask;
 
         //Generate the sparse entries locations and values
-        af::cfloat rot = {cosf(angle), sinf(angle)};
+        af::cfloat rot = {std::cos(angle), std::sin(angle)};
         rows[0] = 0;
         for (int i = 0; i < states; ++i)
         {
@@ -409,7 +416,7 @@ public:
     float angle{};
 };
 
-class CControl_Not_old : public aqs::QGate
+class CControl_Not_old : QGate_old
 {
 public:
     CControl_Not_old(uint32_t controlA, uint32_t controlB, uint32_t target) : control_qubit_A{controlA} ,
@@ -459,7 +466,7 @@ public:
     uint32_t target_qubit{};
 };
 
-class Or_old : public aqs::QGate
+class Or_old : QGate_old
 {
 public:
     Or_old(uint32_t controlA, uint32_t controlB, uint32_t target) : control_qubit_A{controlA} ,
@@ -506,7 +513,7 @@ public:
     uint32_t target_qubit{};
 };
 
-class Control_Swap_old : public aqs::QGate
+class Control_Swap_old : QGate_old
 {
 public:
     Control_Swap_old(uint32_t control, uint32_t targetA, uint32_t targetB) : control_qubit{control} , target_qubit_A{targetA} ,
@@ -559,7 +566,7 @@ public:
     uint32_t target_qubit_B{};
 };
 
-class Control_Hadamard_old : public aqs::QGate
+class Control_Hadamard_old : QGate_old
 {
 public:
     Control_Hadamard_old(uint32_t control, uint32_t target) : control_qubit{control} , target_qubit{target} {}
@@ -585,7 +592,7 @@ public:
     uint32_t control_qubit{};
 };
 
-class CircuitGate_old : public aqs::QGate
+class CircuitGate_old : QGate_old
 {
 public:
     CircuitGate_old(const aqs::QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name = "")
@@ -669,7 +676,7 @@ public:
     uint32_t target_qubit_begin;
 };
 
-class ControlCircuitGate_old : public aqs::QGate
+class ControlCircuitGate_old : QGate_old
 {
 public:
     ControlCircuitGate_old(const aqs::QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name = "")

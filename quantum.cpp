@@ -207,6 +207,67 @@ void QCircuit::generate_circuit()
         }
         cached_index_ = gate_list_.size();
     }
+    /*
+    if (cached_index_ != gate_list_.size())
+    {
+        std::size_t same_gate_index = 0;
+        std::size_t same_gate_count = 0;
+        uint32_t same_gate_type = -1;
+        for (std::size_t i = cached_index_; i < gate_list_.size(); ++i)
+        {
+            const auto& gate = *(gate_list_[i]);
+            if (gate.type() != same_gate_type)
+            {
+                if (same_gate_count > state_count() / 4)
+                {
+                    //std::vector<uint32_t> 
+                    switch (same_gate_type)
+                    {
+                    case X::static_type():
+                        add_x_gates(*this, gates, same_gate_index, same_gate_count);
+                        break;
+                    case Y::static_type():
+                        break;
+                    case Z::static_type():
+
+                        break;
+                    default:
+                        for (std::size_t j = 0; j < same_gate_count; ++j)
+                            (gate_list_[j + same_gate_index])->operator()(*this);
+                        break;
+                    }
+                }
+                else
+                {
+                    for (std::size_t j = 0; j < same_gate_count; ++j)
+                        (gate_list_[j + same_gate_index])->operator()(*this);
+                }
+                same_gate_type = gate.type();
+                same_gate_count = 1;
+                same_gate_index = i;
+            }
+            else
+                ++same_gate_count;
+            //gate(*this);
+        }
+
+        cached_index_ = gate_list_.size();
+    }
+
+    std::vector<std::vector<std::size_t>> gate_layout(qubits_);
+    for (auto& qubit_vec : gate_layout)
+        qubit_vec.resize(gate_list_.size());
+    
+    std::size_t index = 0;
+    for (std::size_t i = 0; i < gate_list_.size(); ++i)
+    {
+        const auto& gate = *(gate_list_[i]);
+
+        for (const auto& qubit :  gate.qubit_positions())
+            gate_layout[qubit].push_back(i);
+        index++;
+    }
+    */
 }
 
 QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const QNoise& noise_generator)
@@ -407,46 +468,6 @@ QCircuit& X::operator()(QCircuit& qc) const
     return qc;
 }
 
-/*
-template<>
-QCircuit& operator<<<X>(QCircuit& qc, const std::vector<X>& gates)
-{
-    const auto qubits = qc.qubit_count();
-    const auto states = qc.state_count();
-
-    if (gates.size() > qubits)
-        throw std::invalid_argument{"Cannot add more than circuit qubit count (concurrent) gates"};
-
-    std::array<bool, max_qubit_count> qubit_gates{};
-    for (const auto& gate : gates)
-    {
-        auto index = gate.target_qubit;
-        if (index >= qubits)
-            throw std::invalid_argument{"Cannot add gate at the given qubit position"};
-        if (qubit_gates[index])
-            throw std::invalid_argument{"Cannot add (concurrent) gate to the same qubit multiple times"};
-        qubit_gates[index] = true;
-    }
-
-    af::array identity_matrix = af::identity(2, 2, c32);
-    af::array gates_matrix = qubit_gates[0] ? x_matrix : identity_matrix;
-
-    for (uint32_t i = 1; i < qubits; ++i)
-    {
-        const auto& has_gate = qubit_gates[i];
-        if (has_gate)
-            gates_matrix = tensor_product(gates_matrix, x_matrix);
-        else
-            gates_matrix = tensor_product(gates_matrix, identity_matrix);
-    }
-
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(gates_matrix, circuit);
-
-    return qc;
-}
-*/
-
 std::string X::to_string() const
 {
     return "X," + std::to_string(target_qubit) + ";";
@@ -475,46 +496,6 @@ QCircuit& Y::operator()(QCircuit& qc) const
     return qc;
 }
 
-/*
-template<>
-QCircuit& operator<<<Y>(QCircuit& qc, const std::vector<Y>& gates)
-{
-    const auto qubits = qc.qubit_count();
-    const auto states = qc.state_count();
-
-    if (gates.size() > qubits)
-        throw std::invalid_argument{"Cannot add more than circuit qubit count (concurrent) gates"};
-
-    std::array<bool, max_qubit_count> qubit_gates{};
-    for (const auto& gate : gates)
-    {
-        auto index = gate.target_qubit;
-        if (index >= qubits)
-            throw std::invalid_argument{"Cannot add gate at the given qubit position"};
-        if (qubit_gates[index])
-            throw std::invalid_argument{"Cannot add (concurrent) gate to the same qubit multiple times"};
-        qubit_gates[index] = true;
-    }
-
-    af::array identity_matrix = af::identity(2, 2, c32);
-    af::array gates_matrix = qubit_gates[0] ? y_matrix : identity_matrix;
-
-    for (uint32_t i = 1; i < qubits; ++i)
-    {
-        const auto& has_gate = qubit_gates[i];
-        if (has_gate)
-            gates_matrix = tensor_product(gates_matrix, y_matrix);
-        else
-            gates_matrix = tensor_product(gates_matrix, identity_matrix);
-    }
-
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(gates_matrix, circuit);
-
-    return qc;
-}
-*/
-
 std::string Y::to_string() const
 {
     return "Y," + std::to_string(target_qubit) + ";";
@@ -542,46 +523,6 @@ QCircuit& Z::operator()(QCircuit& qc) const
 
     return qc;
 }
-
-/*
-template<>
-QCircuit& operator<<<Z>(QCircuit& qc, const std::vector<Z>& gates)
-{
-    const auto qubits = qc.qubit_count();
-    const auto states = qc.state_count();
-
-    if (gates.size() > qubits)
-        throw std::invalid_argument{"Cannot add more than circuit qubit count (concurrent) gates"};
-
-    std::array<bool, max_qubit_count> qubit_gates{};
-    for (const auto& gate : gates)
-    {
-        auto index = gate.target_qubit;
-        if (index >= qubits)
-            throw std::invalid_argument{"Cannot add gate at the given qubit position"};
-        if (qubit_gates[index])
-            throw std::invalid_argument{"Cannot add (concurrent) gate to the same qubit multiple times"};
-        qubit_gates[index] = true;
-    }
-
-    af::array identity_matrix = af::identity(2, 2, c32);
-    af::array gates_matrix = qubit_gates[0] ? z_matrix : identity_matrix;
-
-    for (uint32_t i = 1; i < qubits; ++i)
-    {
-        const auto& has_gate = qubit_gates[i];
-        if (has_gate)
-            gates_matrix = tensor_product(gates_matrix, z_matrix);
-        else
-            gates_matrix = tensor_product(gates_matrix, identity_matrix);
-    }
-
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(gates_matrix, circuit);
-
-    return qc;
-}
-*/
 
 std::string Z::to_string() const
 {
@@ -645,46 +586,6 @@ QCircuit& Hadamard::operator()(QCircuit& qc) const
 */
 }
 
-/*
-template<>
-QCircuit& operator<<<Hadamard>(QCircuit& qc, const std::vector<Hadamard>& gates)
-{
-    const auto qubits = qc.qubit_count();
-    const auto states = qc.state_count();
-
-    if (gates.size() > qubits)
-        throw std::invalid_argument{"Cannot add more than circuit qubit count (concurrent) gates"};
-
-    std::array<bool, max_qubit_count> qubit_gates{};
-    for (const auto& gate : gates)
-    {
-        auto index = gate.target_qubit;
-        if (index >= qubits)
-            throw std::invalid_argument{"Cannot add gate at the given qubit position"};
-        if (qubit_gates[index])
-            throw std::invalid_argument{"Cannot add (concurrent) gate to the same qubit multiple times"};
-        qubit_gates[index] = true;
-    }
-
-    af::array identity_matrix = af::identity(2, 2, c32);
-    af::array gates_matrix = qubit_gates[0] ? hadamard_matrix : identity_matrix;
-
-    for (uint32_t i = 1; i < qubits; ++i)
-    {
-        const auto& has_gate = qubit_gates[i];
-        if (has_gate)
-            gates_matrix = tensor_product(gates_matrix, hadamard_matrix);
-        else
-            gates_matrix = tensor_product(gates_matrix, identity_matrix);
-    }
-
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(gates_matrix, circuit);
-
-    return qc;
-}
-*/
-
 std::string Hadamard::to_string() const
 {
     return "H," + std::to_string(target_qubit) + ";";
@@ -712,51 +613,6 @@ QCircuit& Phase::operator()(QCircuit& qc) const
 
     return qc;
 }
-
-/*
-template<>
-QCircuit& operator<<<Phase>(QCircuit& qc, const std::vector<Phase>& gates)
-{
-    const auto qubits = qc.qubit_count();
-    const auto states = qc.state_count();
-
-    if (gates.size() > qubits)
-        throw std::invalid_argument{"Cannot add more than circuit qubit count (concurrent) gates"};
-
-    std::array<bool, max_qubit_count> qubit_gates{};
-    std::array<af::cfloat, max_qubit_count> qubit_angles{};
-    for (const auto& gate : gates)
-    {
-        auto index = gate.target_qubit;
-        if (index >= qubits)
-            throw std::invalid_argument{"Cannot add gate at the given qubit position"};
-        if (qubit_gates[index])
-            throw std::invalid_argument{"Cannot add (concurrent) gate to the same qubit multiple times"};
-        qubit_gates[index] = true;
-        qubit_angles[index] = { std::cos(gate.angle) , std::sin(gate.angle) };
-    }
-
-    af::array identity_matrix = af::identity(2, 2, c32);
-    af::array phase_matrices = af::tile(af::flat(identity_matrix), 1, max_qubit_count);
-    phase_matrices.row(3) = af::array(1, max_qubit_count, qubit_angles.data());
-
-    af::array gates_matrix = qubit_gates[0] ? af::moddims(phase_matrices.col(0), 2, 2) : identity_matrix;
-
-    for (uint32_t i = 1; i < qubits; ++i)
-    {
-        const auto& has_gate = qubit_gates[i];
-        if (has_gate)
-            gates_matrix = tensor_product(gates_matrix, af::moddims(phase_matrices.col(i), 2, 2));
-        else
-            gates_matrix = tensor_product(gates_matrix, identity_matrix);
-    }
-
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(gates_matrix, circuit);
-
-    return qc;
-}
-*/
 
 std::string Phase::to_string() const
 {
@@ -912,7 +768,6 @@ QCircuit& Control_Z::operator()(QCircuit& qc) const
 
     auto values = af::constant(af::cfloat{ 1.f , 0.f }, states);
     af::replace(values, (iota & mask) != mask, af::constant(af::cfloat{ -1.f , 0.f }, states));
-    //af::replace(values, ((iota & mask) ^ mask).as(b8), af::constant(af::cfloat{ -1.f , 0.f}, states));
 
     auto cz_matrix = af::sparse(states, states, values, row_indices, column_indices);
 
@@ -973,70 +828,6 @@ std::string Control_Phase::to_string() const
         return "CT†,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
     else
         return "CPhase,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
-}
-
-static QCircuit& cswap_gate_af_cpu(QCircuit& qc, uint32_t control_qubit, uint32_t target_qubit_A, uint32_t target_qubit_B)
-{
-    const auto qubits = qc.qubit_count();
-    const auto states = qc.state_count();
-
-    std::vector<int> cols(states), rows(states + 1);
-
-    int32_t control_mask = 1 << (qubits - 1 - control_qubit);
-    int32_t target_maskA = 1 << (qubits - 1 - target_qubit_A);
-    int32_t target_maskB = 1 << (qubits - 1 - target_qubit_B);
-    int32_t target_mask = target_maskA | target_maskB;
-
-    rows[0] = 0;
-    for (int i = 0; i < states; ++i)
-    {
-        rows[i + 1] = i + 1;
-        if ((i & control_mask) && ((i & target_mask) == target_maskA || (i & target_mask) == target_maskB))
-        {
-            cols[i] = (i ^ target_maskA) ^ target_maskB;
-        }
-        else
-            cols[i] = i;
-    }
-
-    af::array cswap_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.0f , 0.0f }, states),
-                            af::array(states + 1, rows.data()), af::array(states, cols.data()));
-
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(cswap_matrix, circuit);
-
-    return qc;
-}
-
-static QCircuit& cswap_gate_af_opencl(QCircuit& qc, uint32_t control_qubit, uint32_t target_qubit_A, uint32_t target_qubit_B)
-{
-    const auto qubits = qc.qubit_count();
-    const auto states = qc.state_count();
-
-    int32_t posA = qubits - 1 - target_qubit_A;
-    int32_t posB = qubits - 1 - target_qubit_B;
-
-    int32_t control = 1 << (qubits - control_qubit - 1);
-    int32_t targetA = 1 << posA;
-    int32_t targetB = 1 << posB;
-
-    auto iota = af::iota(states, 1, s32);
-    auto row_indices = af::iota(states + 1, 1, s32);
-
-    // Generate column indices that should be swapped (swap the bits in the states of qA and qB)
-    auto temp = (iota >> posA) ^ (iota >> posB);
-    temp = temp & 1;
-    auto replace_vals = iota ^ ((temp << posA) | (temp << posB));
-
-    auto column_indices = iota;
-    af::replace(column_indices, (iota & control) != control, replace_vals);
-
-    auto matrix_cswap = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
-
-    auto& circuit = qc.circuit();
-    circuit = af::matmul(matrix_cswap, circuit);
-
-    return qc;
 }
 
 QCircuit& Control_Swap::operator()(QCircuit& qc) const
@@ -1269,7 +1060,6 @@ CircuitGate::CircuitGate(const QCircuit& circuit_, uint32_t target_qubit_begin_,
     }
 }
 
-
 QCircuit& CircuitGate::operator()(QCircuit& qc) const
 {
     const auto qubits = qc.qubit_count();
@@ -1301,28 +1091,23 @@ QCircuit& CircuitGate::operator()(QCircuit& qc) const
 
     af::array gate_values = gate(n * gate_states + m);
 
-    //jj.eval();
-    //af_print(ii.as(f32) * af::constant(16, len, f32)+ jj.as(f32));
-    af_print(ii * circuit_states + jj);
     gate_matrix(ii * circuit_states + jj) = gate_values;
-
-    /*
-    auto len = gate_states * gate_states;
-    auto m = af::iota(gate_states, gate_states, s32);
-    auto n = af::resize(af::iota(gate_states, 1, s32), len, 1, AF_INTERP_LOWER);
-    af::array gate_values = gate(m * gate_states + n);
-    for (int i = 0; i < rem_count; ++i)
-    {
-        auto ind = af::constant(i, len, s32);
-        auto ii = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, m, ind, len);
-        auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, n, ind, len);
-        gate_matrix(ii * circuit_states + jj) = gate_values;
-    }*/
 
     auto& circuit = qc.circuit();
     circuit = af::matmul(gate_matrix, circuit);
 
     return qc;
+}
+
+std::vector<uint32_t> CircuitGate::qubit_positions() const
+{
+    std::vector<uint32_t> qubits;
+    qubits.reserve(internal_circuit.qubit_count());
+    
+    for (uint32_t i = 0; i < internal_circuit.qubit_count(); ++i)
+        qubits.push_back(target_qubit_begin + i);
+
+    return qubits;
 }
 
 ControlCircuitGate::ControlCircuitGate(const QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name)
@@ -1387,13 +1172,24 @@ QCircuit& ControlCircuitGate::operator()(QCircuit& qc) const
 
     af::array gate_values = gate(n * gate_states + m);
 
-    jj.eval();
     gate_matrix(ii * circuit_states + jj) = gate_values;
 
     auto& circuit = qc.circuit();
     circuit = af::matmul(gate_matrix, circuit);
 
     return qc;
+}
+
+std::vector<uint32_t> ControlCircuitGate::qubit_positions() const
+{
+    std::vector<uint32_t> qubits;
+    qubits.reserve(internal_circuit.qubit_count() + 1);
+    
+    qubits.push_back(control_qubit);
+    for (uint32_t i = 0; i < internal_circuit.qubit_count(); ++i)
+        qubits.push_back(target_qubit_begin + i);
+    
+    return qubits;
 }
 
 void initialize(int argc, char** argv)

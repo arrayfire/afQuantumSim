@@ -177,17 +177,10 @@ af::array tensor_product_af_cpu(const af::array& mat1, const af::array& mat2)
     const auto rows2 = mat2.dims()[0];
     const auto cols2 = mat2.dims()[1];
 
-    mat1.eval();
-    mat2.eval();
-
     auto temp = af::moddims(af::flat(af::tile(af::flat(mat1).T(), cols2)).T(), cols1 * cols2, rows1);
-    temp.eval();
-    auto resized_mat1 = af::moddims(af::tile(temp.T(),
-                                           1, rows2).T(),
-                                    rows1 * rows2, cols1 * cols2);
+
+    auto resized_mat1 = af::moddims(af::tile(temp.T(), 1, rows2).T(), rows1 * rows2, cols1 * cols2);
     auto tiled_mat2 = af::tile(mat2, rows1, cols1);
-    resized_mat1.eval();
-    tiled_mat2.eval();
 
     return tiled_mat2 *= resized_mat1;
 }

@@ -53,6 +53,7 @@ void circuit_gate_test(int qubit_count, int gate_qcount, int test_count);
 void profile_measure_all_test(int qubit_count, int test_count);
 void profile_measure_test(int qubit_count, int test_count);
 void tensor_product_test(int size, int test_count);
+void group_addition_test(int qubit_count, int gate_count, int test_count);
 
 af::array old_tensor(const af::array&, const af::array&);
 
@@ -61,12 +62,13 @@ int main(int argc, char** argv)
     aqs::initialize(argc, argv);
     std::cout << "\n";
 
-    int repcount = 10000;
-    int qcount = 10;
-    int gateqcount = 6;
-
+    int repcount = 1;
+    int qcount = 13;
+    int gateqcount = 12;
     int size = 25;
-    
+
+    group_addition_test(qcount, gateqcount, repcount);
+
     tensor_product_test(size, repcount);
 
     Hadamard_gate_test(qcount, repcount);
@@ -115,12 +117,12 @@ void X_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::X(0);
+        aqs::X(0)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << X_old(0);
+        X_old(0)(qc);
         qc.circuit().eval();
     };
 
@@ -134,12 +136,12 @@ void Y_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::Y(0);
+        aqs::Y(0)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Y_old(0);
+        Y_old(0)(qc);
     };
 
     profile(func1, test_count, "-- Test: New Y gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
@@ -152,12 +154,12 @@ void Z_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::Z(0);
+        aqs::Z(0)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Z_old(0);
+        Z_old(0)(qc);
         qc.circuit().eval();
     };
 
@@ -176,7 +178,7 @@ void swap_gate_test(int  qubit_count, int test_count)
     };
 
     auto func2 = [&]() {
-        qc << Swap_old(0, qubit_count - 1);
+        Swap_old(0, qubit_count - 1)(qc);
         qc.circuit().eval();
     };
 
@@ -192,12 +194,12 @@ void Phase_gate_test(int qubit_count, int test_count)
     float angle = aqs::pi / 4.f;
 
     auto func1 = [&](){
-        qc << aqs::Phase(0, angle);
+        aqs::Phase(0, angle)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Phase_old(0, angle);
+        Phase_old(0, angle)(qc);
         qc.circuit().eval();
     };
 
@@ -211,12 +213,12 @@ void Hadamard_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::Hadamard(0);
+        aqs::Hadamard(0)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Hadamard_old(0);
+        Hadamard_old(0)(qc);
         qc.circuit().eval();
     };
 
@@ -233,12 +235,12 @@ void CX_gate_test(int qubit_count, int test_count)
     uint32_t control = qubit_count - 1;
 
     auto func1 = [&](){
-        qc << aqs::Control_X(control, target);
+        aqs::Control_X(control, target)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Control_X_old(control, target);
+        Control_X_old(control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -255,12 +257,12 @@ void CY_gate_test(int qubit_count, int test_count)
     uint32_t control = qubit_count - 1;
 
     auto func1 = [&](){
-        qc << aqs::Control_Y(control, target);
+        aqs::Control_Y(control, target)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Control_Y_old(control, target);
+        Control_Y_old(control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -277,12 +279,12 @@ void CZ_gate_test(int qubit_count, int test_count)
     uint32_t control = qubit_count - 1;
 
     auto func1 = [&](){
-        qc << aqs::Control_Z(control, target);
+        aqs::Control_Z(control, target)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Control_Z_old(control, target);
+        Control_Z_old(control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -300,12 +302,12 @@ void CPhase_gate_test(int qubit_count, int test_count)
     float angle = aqs::pi / 4;
 
     auto func1 = [&](){
-        qc << aqs::Control_Phase(control, target, angle);
+        aqs::Control_Phase(control, target, angle)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Control_Phase_old(control, target, angle);
+        Control_Phase_old(control, target, angle)(qc);
         qc.circuit().eval();
     };
 
@@ -323,12 +325,12 @@ void CCNot_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::CControl_Not(controlA, controlB, target);
+        aqs::CControl_Not(controlA, controlB, target)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << CControl_Not_old(controlA, controlB, target);
+        CControl_Not_old(controlA, controlB, target)(qc);
         qc.circuit().eval();
     };
 
@@ -346,12 +348,12 @@ void Or_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::Or(controlA, controlB, target);
+        aqs::Or(controlA, controlB, target)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Or_old(controlA, controlB, target);
+        Or_old(controlA, controlB, target)(qc);
         qc.circuit().eval();
     };
 
@@ -369,12 +371,12 @@ void CSwap_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::Control_Swap(controlA, controlB, target);
+        aqs::Control_Swap(controlA, controlB, target)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Control_Swap_old(controlA, controlB, target);
+        Control_Swap_old(controlA, controlB, target)(qc);
         qc.circuit().eval();
     };
 
@@ -391,12 +393,12 @@ void CHadamard_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::Control_Hadamard(control, target);
+        aqs::Control_Hadamard(control, target)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&]() {
-        qc << Control_Hadamard_old(control, target);
+        Control_Hadamard_old(control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -416,12 +418,12 @@ void CircuitGate_test(int qubit_count, int gate_qcount, int test_count)
         gate << aqs::Hadamard(i);
 
     auto func1 = [&](){
-        qc << aqs::CircuitGate(gate, 0);
+        aqs::CircuitGate(gate, 0)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&](){
-        qc << CircuitGate_old(gate, 0);
+        CircuitGate_old(gate, 0)(qc);
         qc.circuit().eval();
     };
 
@@ -442,12 +444,12 @@ void ControlCircuitGate_test(int qubit_count, int gate_qcount, int test_count)
         gate << aqs::Hadamard(i);
 
     auto func1 = [&](){
-        qc << aqs::ControlCircuitGate(gate, control, target);
+        aqs::ControlCircuitGate(gate, control, target)(qc);
         qc.circuit().eval();
     };
 
     auto func2 = [&](){
-        qc << ControlCircuitGate_old(gate, control, target);
+        ControlCircuitGate_old(gate, control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -465,7 +467,7 @@ void circuit_gate_test(int qubit_count, int gate_qcount, int test_count)
         gate << aqs::Hadamard(i);
 
     auto func = [&](){
-        qc << aqs::CircuitGate(gate, 0);
+        aqs::CircuitGate(gate, 0)(qc);
         qc.circuit().eval();
     };
 
@@ -546,4 +548,79 @@ af::array old_tensor(const af::array& mat1, const af::array& mat2)
     af::array resized_mat1 = af::resize(dims2[0], dims2[1], mat1, AF_INTERP_LOWER);
 
     return out *= resized_mat1;
+}
+
+void group_addition_test(int qubit_count, int gate_count, int test_count)
+{
+    aqs::QCircuit qc(qubit_count);
+    uint32_t qubit_measured = 0;
+
+    auto func1 = [&]() {
+        static bool first = true;
+        for (int i = 0; i < gate_count; ++i)
+            aqs::X((uint32_t)i)(qc);
+
+        if (first)
+        {
+            af::printMemInfo();
+            first = false;
+        }
+    };
+
+    af::array x_matrix{ 2, 2, c32};
+    x_matrix(0, 0) = af::cfloat{ 0. , 0. };
+    x_matrix(0, 1) = af::cfloat{ 1. , 0. };
+    x_matrix(1, 0) = af::cfloat{ 0. , 1. };
+    x_matrix(1, 1) = af::cfloat{ 0. , 0. };
+
+    auto func2 = [&]() {
+        static bool first = true;
+
+        const auto qubits = qc.qubit_count();
+        const auto states = qc.state_count();
+
+        std::vector<aqs::X> gates;
+        gates.reserve(gate_count);
+        for (int i = 0; i < gates.size(); ++i)
+            gates.emplace_back(i);
+
+        if (gates.size() > qubits)
+            throw std::invalid_argument{"Cannot add more than circuit qubit count (concurrent) gates"};
+
+        std::array<bool, aqs::max_qubit_count> qubit_gates{};
+        for (const auto& gate : gates)
+        {
+            auto index = gate.target_qubit;
+            if (index >= qubits)
+                throw std::invalid_argument{"Cannot add gate at the given qubit position"};
+            if (qubit_gates[index])
+                throw std::invalid_argument{"Cannot add (concurrent) gate to the same qubit multiple times"};
+            qubit_gates[index] = true;
+        }
+
+        af::array identity_matrix = af::identity(2, 2, c32);
+        af::array gates_matrix = qubit_gates[0] ? x_matrix : identity_matrix;
+
+        for (uint32_t i = 1; i < qubits; ++i)
+        {
+            const auto& has_gate = qubit_gates[i];
+            if (has_gate)
+                gates_matrix = tensor_product(gates_matrix, x_matrix);
+            else
+                gates_matrix = tensor_product(gates_matrix, identity_matrix);
+        }
+
+        auto& circuit = qc.circuit();
+        circuit = af::matmul(gates_matrix, circuit);
+        circuit.eval();
+        if (first)
+        {
+            af::printMemInfo();
+            first = false;
+        }
+    };
+
+    profile(func1, test_count, "-- Test: Without group addition " + std::to_string(qubit_count) + " qubits  --");
+
+    profile(func2, test_count, "-- Test: Group addition " + std::to_string(qubit_count) + " qubits  --");
 }

@@ -9,6 +9,7 @@
 #undef NDEBUG
 
 #include "quantum.h"
+#include "quantum_gates.h"
 #include "quantum_visuals.h"
 
 #include <iostream>
@@ -808,6 +809,19 @@ void test_qsim_gates()
     ref.generate_circuit();
     assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
 
+    qc.reset_circuit();
+    qc << ControlCircuitGate(temp, 2, 0);
+    
+    ref.reset_circuit();
+    ref << aqs::Control_Hadamard(2, 0);
+    ref << aqs::CControl_Not(0, 2, 1);
+    ref << aqs::Control_Z(2, 0);
+    ref << aqs::Control_Swap(2, 0, 1);
+    
+    qc.generate_circuit();
+    ref.generate_circuit();
+    assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
+
     // Custom Gate
     std::cout << "Custom gate\n";
     qc.reset_circuit();
@@ -870,6 +884,45 @@ void test_qsim_gates()
     assert(af::allTrue<bool>(reference.global_state() == qs.global_state()));
 
     std::cout << "Finished test_qsim_gates...\n" << std::endl;
+}
+
+void test_special_gates()
+{
+    std::cout << "Starting test_special_gates..\n";
+    QCircuit qc(6);
+    QSimulator qs(6);
+
+    uint32_t target = 3;
+    QCircuit xc(1);
+    xc << aqs::X(0);
+    qc << aqs::CircuitGate(aqs::NControl_Gate(6, { 0, 2, 4, 5 }, target, xc), 0);
+
+    for (int i = 0; i < qs.qubit_count(); ++i)
+        qs.qubit(i) = aqs::QState::one();
+
+    qc.generate_circuit();
+    qs.generate_global_state();
+    qs.simulate(qc);
+    assert(qs.peek_measure_all() == 0b111011);
+
+    qs.qubit(target) = aqs::QState::zero();
+    qs.generate_global_state();
+    qs.simulate(qc);
+    assert(qs.peek_measure_all() == 0b111111);
+
+    qs.qubit(1) = aqs::QState::zero();
+    qs.qubit(target) = aqs::QState::zero();
+    qs.generate_global_state();
+    qs.simulate(qc);
+    assert(qs.peek_measure_all() == 0b101111);
+
+    qs.qubit(1) = aqs::QState::zero();
+    qs.qubit(target) = aqs::QState::one();
+    qs.generate_global_state();
+    qs.simulate(qc);
+    assert(qs.peek_measure_all() == 0b101011);
+
+    std::cout << "Finished test_special_gates...\n" << std::endl;
 }
 
 void test_qsim_probability()
@@ -943,6 +996,7 @@ int main(int argc, char** argv)
     test_qsim_profile_measure();
     test_qsim_gates();
     test_qsim_probability();
+    test_special_gates();
 
     return 0;
 }

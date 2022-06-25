@@ -10,12 +10,13 @@
 #include "quantum_gates.h"
 
 #include <algorithm>
+#include <iostream>
 
 namespace aqs
 {
    QCircuit Control_GroupPhase(uint32_t qubits, uint32_t control_qubit, uint32_t target_qubit_begin, float angle)
    {
-        if (control_qubit < 0 || control_qubit >= qubits)
+        if (control_qubit >= qubits)
             throw std::invalid_argument{"Invalid control qubit position"};
         if (target_qubit_begin <= control_qubit || target_qubit_begin >= qubits)
             throw std::invalid_argument{"Invalid target qubit begin position"};
@@ -77,8 +78,8 @@ namespace aqs
             throw std::invalid_argument{"Invalid target qubit begin position"};
 
         std::sort(control_qubits.begin(), control_qubits.end());
-        if (control_qubits.back() <= target_qubit_begin + gate.qubit_count())
-            throw std::invalid_argument{"Cannot add control gate at the target qubit positions"};
+        if (control_qubits.back() >= qubits)
+            throw std::invalid_argument{"Cannot add control gate at the given position"};
 
         auto pivot = std::lower_bound(control_qubits.begin(), control_qubits.end(), target_qubit_begin);
         if (pivot != control_qubits.end() && *pivot < target_qubit_begin + gate.qubit_count())
@@ -87,33 +88,34 @@ namespace aqs
         std::vector<uint32_t> top(control_qubits.begin(), pivot);
         std::vector<uint32_t> bottom(pivot, control_qubits.end());
 
-        QCircuit qc(qubits);
         QCircuit current = gate;
 
         // Add bottom control qubits
-        for (auto it = bottom.begin(); it < bottom.end(); ++it)
+        for (auto it = bottom.begin(); it != bottom.end() - 1; ++it)
         {
             const auto& control_qubit = *it;
             QCircuit temp(control_qubit - target_qubit_begin + 1);
-            temp << ControlCircuitGate(current, control_qubit, 0);
+            temp << ControlCircuitGate(current, control_qubit - target_qubit_begin, 0);
             current = std::move(temp);
         }
+
         // Fit the gate to the fit up to the bottom of the target qubit circuit
         if (bottom.size() != 0)
         {
             QCircuit temp(qubits - target_qubit_begin);
-            temp << ControlCircuitGate(current, bottom.back(), 0);
+            temp << ControlCircuitGate(current, bottom.back() - target_qubit_begin, 0);
             current = std::move(temp);
         }
 
         // Add top control qubits
-        for (auto it = top.rbegin(); it < top.rend(); ++it)
+        for (auto it = top.rbegin(); it != top.rend() - 1; ++it)
         {
             const auto& control_qubit = *it;
-            QCircuit temp(target_qubit_begin - control_qubit + current.qubit_count());
+            QCircuit temp(qubits - control_qubit);
             temp << ControlCircuitGate(current, 0, target_qubit_begin - control_qubit);
             current = std::move(temp);
         }
+
         // Fit the gate to the fit up to the top of the target qubit circuit
         if (top.size() != 0)
         {
@@ -122,6 +124,26 @@ namespace aqs
             current = std::move(temp);
         }
 
-        return qc;
+        return current;
+   }
+
+   QCircuit RewireCircuit(uint32_t qubits, const QCircuit& gate, const std::vector<uint32_t>& new_qubit_positions)
+   {
+        if (new_qubit_positions.size() != qubits)
+            throw std::invalid_argument{"New qubit positions must mast the given number of qubits"};
+        if (gate.qubit_count() > qubits)
+            throw std::domain_error{"Cannot rewire circuit to a lower number of qubits"};
+        return gate;
+
+        std::vector<uint32_t> sort_positions(new_qubit_positions);
+        std::partial_sort_copy(new_qubit_positions.begin(), new_qubit_positions.end(), sort_positions.begin(), sort_positions.end());
+        for (uint32_t i = 0; i < qubits; ++i)
+        {
+            if (i != sort_positions[i])
+                throw std::invalid_argument{"Missing qubits in mapping positions"};
+        }
+
+        // To do
+        return gate;
    }
 }

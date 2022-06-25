@@ -1146,6 +1146,8 @@ QCircuit& ControlCircuitGate::operator()(QCircuit& qc) const
         throw std::out_of_range{"Gate must fit inside the circuit qubit count"};
     if (target_qubit_begin <= control_qubit && control_qubit < target_qubit_begin + qubit_count)
         throw std::out_of_range{"Control qubit cannot be one of the target qubits of the gate"};
+    if (qubit_count + 1 > qubits)
+        throw std::invalid_argument{"Cannot add a bigger gate to the circuit"};
 
     const uint32_t circuit_qubits = qc.qubit_count();
     const uint32_t circuit_states = qc.state_count();
@@ -1167,8 +1169,18 @@ QCircuit& ControlCircuitGate::operator()(QCircuit& qc) const
     auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, m, ind, len);
 
     auto ones = af::constant(1, len, s32);
-    ii = insert_bits(ii, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
-    jj = insert_bits(jj, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
+
+    if (control_qubit < target_qubit_begin)
+    {
+        ii = insert_bits(ii, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
+        jj = insert_bits(jj, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
+    }
+    else
+    {
+        auto ctrlbit = af::constant(1 << (qubits - control_qubit - 1), len, s32);
+        ii = ii | ctrlbit;
+        jj = jj | ctrlbit;
+    }
 
     af::array gate_values = gate(n * gate_states + m);
 

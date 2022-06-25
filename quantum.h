@@ -447,7 +447,6 @@ QCircuit& operator<<(QCircuit& qc, const std::vector<T>& gates)
     for (const auto& gate : gates)
     {
         qc.representation_.append(gate.to_string());
-        //gate(qc);
         qc.gate_list().push_back(std::make_shared<T>(gate));
     }
     return qc;

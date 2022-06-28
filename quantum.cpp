@@ -529,9 +529,101 @@ std::string Z::to_string() const
     return "Z," + std::to_string(target_qubit) + ";";
 }
 
+QCircuit& RotX::operator()(QCircuit& qc) const
+{
+    const auto qubits = qc.qubit_count();
+    if (target_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+
+    af::array left_identity = af::identity(fast_pow2(target_qubit), fast_pow2(target_qubit), c32);
+    af::array right_identity = af::identity(fast_pow2(qubits - target_qubit - 1), fast_pow2(qubits - target_qubit - 1), c32);
+
+    auto cos_angle = std::cos(angle);
+    auto sin_angle = std::sin(angle);
+    const af::cfloat vals[] = {
+        { cos_angle , 0.f } , { 0.f , -sin_angle },
+        { 0.f , -sin_angle } , { cos_angle , 0.f }
+    };
+
+    //Find the n-qubit RotX matrix for the target qubit as I_L @ RotX @ I_R where @ is the tensor product
+    af::array temp = tensor_product(left_identity, af::array(2, 2, vals));
+    temp = tensor_product(temp, right_identity);
+
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(temp, circuit);
+
+    return qc;
+}
+
+std::string RotX::to_string() const
+{
+    return "RotX,0,1:" + std::to_string(target_qubit) + ";";
+}
+
+QCircuit& RotY::operator()(QCircuit& qc) const
+{
+    const auto qubits = qc.qubit_count();
+    if (target_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+
+    af::array left_identity = af::identity(fast_pow2(target_qubit), fast_pow2(target_qubit), c32);
+    af::array right_identity = af::identity(fast_pow2(qubits - target_qubit - 1), fast_pow2(qubits - target_qubit - 1), c32);
+
+    auto cos_angle = std::cos(angle / 2.0f);
+    auto sin_angle = std::sin(angle / 2.0f);
+    const af::cfloat vals[] = {
+        { cos_angle , 0.f } , { -sin_angle , 0.f },
+        { sin_angle , 0.f } , {  cos_angle , 0.f }
+    };
+
+    //Find the n-qubit RotY matrix for the target qubit as I_L @ RotY @ I_R where @ is the tensor product
+    af::array temp = tensor_product(left_identity, af::array(2, 2, vals));
+    temp = tensor_product(temp, right_identity);
+
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(temp, circuit);
+
+    return qc;
+}
+
+std::string RotY::to_string() const
+{
+    return "RotY,0,1:" + std::to_string(target_qubit) + ";";
+}
+
+QCircuit& RotZ::operator()(QCircuit& qc) const
+{
+    const auto qubits = qc.qubit_count();
+    if (target_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+
+    af::array left_identity = af::identity(fast_pow2(target_qubit), fast_pow2(target_qubit), c32);
+    af::array right_identity = af::identity(fast_pow2(qubits - target_qubit - 1), fast_pow2(qubits - target_qubit - 1), c32);
+
+    auto cos_angle = std::cos(angle / 2.0f);
+    auto sin_angle = std::sin(angle / 2.0f);
+    const af::cfloat vals[] = {
+        { cos_angle , -sin_angle } , { 0.f , 0.f },
+        { 0.f , 0.f } , {  cos_angle , sin_angle }
+    };
+
+    //Find the n-qubit RotZ matrix for the target qubit as I_L @ RotZ @ I_R where @ is the tensor product
+    af::array temp = tensor_product(left_identity, af::array(2, 2, vals));
+    temp = tensor_product(temp, right_identity);
+
+    auto& circuit = qc.circuit();
+    circuit = af::matmul(temp, circuit);
+
+    return qc;
+}
+
+std::string RotZ::to_string() const
+{
+    return "RotZ,0,1:" + std::to_string(target_qubit) + ";";
+}
+
 QCircuit& Hadamard::operator()(QCircuit& qc) const
 {
-
     const auto qubits = qc.qubit_count();
     if (target_qubit >= qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
@@ -627,7 +719,6 @@ std::string Phase::to_string() const
     else
         return "Phase," + std::to_string(target_qubit) + ";";
 }
-
 
 QCircuit& Swap::operator()(QCircuit& qc) const
 {
@@ -943,6 +1034,63 @@ std::string Control_Hadamard::to_string() const
     return "CH," + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
+QCircuit& Control_RotX::operator()(QCircuit& qc) const
+{
+    const auto qubits = qc.qubit_count();
+    if (target_qubit >= qubits || control_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (target_qubit == control_qubit)
+        throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
+
+    QCircuit rotx(1);
+    rotx << RotX(0, angle);
+
+    return qc << ControlCircuitGate(rotx, control_qubit, target_qubit);
+}
+
+std::string Control_RotX::to_string() const
+{
+    return "RotX,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+}
+
+QCircuit& Control_RotY::operator()(QCircuit& qc) const
+{
+    const auto qubits = qc.qubit_count();
+    if (target_qubit >= qubits || control_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (target_qubit == control_qubit)
+        throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
+
+    QCircuit roty(1);
+    roty << RotY(0, angle);
+
+    return qc << ControlCircuitGate(roty, control_qubit, target_qubit);
+}
+
+std::string Control_RotY::to_string() const
+{
+    return "RotY,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+}
+
+QCircuit& Control_RotZ::operator()(QCircuit& qc) const
+{
+    const auto qubits = qc.qubit_count();
+    if (target_qubit >= qubits || control_qubit >= qubits)
+        throw std::out_of_range{"Cannot add gate at the given qubit position"};
+    if (target_qubit == control_qubit)
+        throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
+
+    QCircuit rotz(1);
+    rotz << RotZ(0, angle);
+
+    return qc << ControlCircuitGate(rotz, control_qubit, target_qubit);
+}
+
+std::string Control_RotZ::to_string() const
+{
+    return "RotZ,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+}
+
 QCircuit& CControl_Not::operator()(QCircuit& qc) const
 {
     const auto qubits = qc.qubit_count();
@@ -1160,27 +1308,18 @@ QCircuit& ControlCircuitGate::operator()(QCircuit& qc) const
     const af::array& gate = internal_circuit.circuit();
 
     uint32_t rem_count = 1 << (circuit_qubits - gate_qubits - 1);
-    
     auto len = gate_states * gate_states * rem_count;
     auto m = af::tile(af::flat(af::tile(af::iota(gate_states, 1, s32).T(), gate_states)), rem_count);
     auto n = af::iota(gate_states, gate_states * rem_count, s32);
     auto ind = af::flat(af::tile(af::iota(rem_count, 1, s32).T(), gate_states * gate_states));
-    auto ii = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, n, ind, len);
-    auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, m, ind, len);
+
+    auto offset = control_qubit < target_qubit_begin ? 0 : 1;
+    auto ii = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits - offset, n, ind, len);
+    auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits - offset, m, ind, len);
 
     auto ones = af::constant(1, len, s32);
-
-    if (control_qubit < target_qubit_begin)
-    {
-        ii = insert_bits(ii, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
-        jj = insert_bits(jj, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
-    }
-    else
-    {
-        auto ctrlbit = af::constant(1 << (qubits - control_qubit - 1), len, s32);
-        ii = ii | ctrlbit;
-        jj = jj | ctrlbit;
-    }
+    ii = insert_bits(ii, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
+    jj = insert_bits(jj, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
 
     af::array gate_values = gate(n * gate_states + m);
 

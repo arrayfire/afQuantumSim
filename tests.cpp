@@ -542,6 +542,13 @@ void test_qsim_gates()
     assert(cfequal(qs.state(0b0010), af::cfloat{-0.48f, 0.64f}, diff));
     assert(cfequal(qs.state(0b0011), af::cfloat{0.f, 0.f}, diff));
 
+    // RotX gate test
+    qc.reset_circuit();
+    qs.generate_global_state();
+    qc << aqs::RotX(1, aqs::pi / 4.f);
+    qc.generate_circuit();
+    qs.simulate(qc);
+
     // XOR gate test
     std::cout << "Xor gate\n";
     qs.qubit(0) = QState::zero();
@@ -889,38 +896,67 @@ void test_qsim_gates()
 void test_special_gates()
 {
     std::cout << "Starting test_special_gates..\n";
-    QCircuit qc(6);
-    QSimulator qs(6);
 
-    uint32_t target = 3;
-    QCircuit xc(1);
-    xc << aqs::X(0);
-    qc << aqs::CircuitGate(aqs::NControl_Gate(6, { 0, 2, 4, 5 }, target, xc), 0);
+    {
+        QCircuit qc(6);
+        QSimulator qs(6);
 
-    for (int i = 0; i < qs.qubit_count(); ++i)
-        qs.qubit(i) = aqs::QState::one();
+        uint32_t target = 3;
+        QCircuit xc(1);
+        xc << aqs::X(0);
+        qc << aqs::CircuitGate(aqs::NControl_Gate(6, { 0, 2, 4, 5 }, target, xc), 0);
 
-    qc.generate_circuit();
-    qs.generate_global_state();
-    qs.simulate(qc);
-    assert(qs.peek_measure_all() == 0b111011);
+        for (int i = 0; i < qs.qubit_count(); ++i)
+            qs.qubit(i) = aqs::QState::one();
 
-    qs.qubit(target) = aqs::QState::zero();
-    qs.generate_global_state();
-    qs.simulate(qc);
-    assert(qs.peek_measure_all() == 0b111111);
+        qc.generate_circuit();
+        qs.generate_global_state();
+        qs.simulate(qc);
+        assert(qs.peek_measure_all() == 0b111011);
 
-    qs.qubit(1) = aqs::QState::zero();
-    qs.qubit(target) = aqs::QState::zero();
-    qs.generate_global_state();
-    qs.simulate(qc);
-    assert(qs.peek_measure_all() == 0b101111);
+        qs.qubit(target) = aqs::QState::zero();
+        qs.generate_global_state();
+        qs.simulate(qc);
+        assert(qs.peek_measure_all() == 0b111111);
 
-    qs.qubit(1) = aqs::QState::zero();
-    qs.qubit(target) = aqs::QState::one();
-    qs.generate_global_state();
-    qs.simulate(qc);
-    assert(qs.peek_measure_all() == 0b101011);
+        qs.qubit(1) = aqs::QState::zero();
+        qs.qubit(target) = aqs::QState::zero();
+        qs.generate_global_state();
+        qs.simulate(qc);
+        assert(qs.peek_measure_all() == 0b101111);
+
+        qs.qubit(1) = aqs::QState::zero();
+        qs.qubit(target) = aqs::QState::one();
+        qs.generate_global_state();
+        qs.simulate(qc);
+        assert(qs.peek_measure_all() == 0b101011);
+    }
+
+    {
+        QCircuit xc(1); xc << X(0);
+
+        QCircuit qc(4);
+        qc << CircuitGate(NControl_Gate(4, {3}, 0, xc), 0);
+
+        QCircuit ref(4);
+        ref << Control_X(3, 0);
+
+        qc.generate_circuit();
+        ref.generate_circuit();
+
+        assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
+
+        qc.reset_circuit();
+        ref.reset_circuit();
+
+        qc << CircuitGate(NControl_Gate(4, {0, 3}, 2, xc), 0);
+        ref << CControl_Not(0, 3, 2);
+
+        qc.generate_circuit();
+        ref.generate_circuit();
+
+        assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
+    }
 
     std::cout << "Finished test_special_gates...\n" << std::endl;
 }

@@ -62,10 +62,10 @@ int main(int argc, char** argv)
     aqs::initialize(argc, argv);
     std::cout << "\n";
 
-    int repcount = 1;
-    int qcount = 13;
-    int gateqcount = 12;
-    int size = 25;
+    int repcount = 1000;
+    int qcount = 8;
+    int gateqcount = 6;
+    int size = 20;
 
     group_addition_test(qcount, gateqcount, repcount);
 
@@ -173,7 +173,7 @@ void swap_gate_test(int  qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        qc << aqs::Swap(0, qubit_count - 1);
+        aqs::Swap(0, qubit_count - 1)(qc);
         qc.circuit().eval();
     };
 
@@ -213,7 +213,7 @@ void Hadamard_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        aqs::Hadamard(0)(qc);
+        aqs::H(0)(qc);
         qc.circuit().eval();
     };
 
@@ -235,7 +235,7 @@ void CX_gate_test(int qubit_count, int test_count)
     uint32_t control = qubit_count - 1;
 
     auto func1 = [&](){
-        aqs::Control_X(control, target)(qc);
+        aqs::CX(control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -257,7 +257,7 @@ void CY_gate_test(int qubit_count, int test_count)
     uint32_t control = qubit_count - 1;
 
     auto func1 = [&](){
-        aqs::Control_Y(control, target)(qc);
+        aqs::CY(control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -279,7 +279,7 @@ void CZ_gate_test(int qubit_count, int test_count)
     uint32_t control = qubit_count - 1;
 
     auto func1 = [&](){
-        aqs::Control_Z(control, target)(qc);
+        aqs::CZ(control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -302,7 +302,7 @@ void CPhase_gate_test(int qubit_count, int test_count)
     float angle = aqs::pi / 4;
 
     auto func1 = [&](){
-        aqs::Control_Phase(control, target, angle)(qc);
+        aqs::CPhase(control, target, angle)(qc);
         qc.circuit().eval();
     };
 
@@ -325,7 +325,7 @@ void CCNot_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        aqs::CControl_Not(controlA, controlB, target)(qc);
+        aqs::CCNot(controlA, controlB, target)(qc);
         qc.circuit().eval();
     };
 
@@ -371,7 +371,7 @@ void CSwap_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        aqs::Control_Swap(controlA, controlB, target)(qc);
+        aqs::CSwap(controlA, controlB, target)(qc);
         qc.circuit().eval();
     };
 
@@ -393,7 +393,7 @@ void CHadamard_gate_test(int qubit_count, int test_count)
     aqs::QCircuit qc(qubit_count);
 
     auto func1 = [&](){
-        aqs::Control_Hadamard(control, target)(qc);
+        aqs::CH(control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -415,10 +415,10 @@ void CircuitGate_test(int qubit_count, int gate_qcount, int test_count)
     aqs::QCircuit gate(gate_qcount);
 
     for (int i = 0; i < gate_qcount; ++i)
-        gate << aqs::Hadamard(i);
+        gate << aqs::H(i);
 
     auto func1 = [&](){
-        aqs::CircuitGate(gate, 0)(qc);
+        aqs::Gate(gate, 0)(qc);
         qc.circuit().eval();
     };
 
@@ -441,10 +441,10 @@ void ControlCircuitGate_test(int qubit_count, int gate_qcount, int test_count)
     aqs::QCircuit gate(gate_qcount);
 
     for (int i = 0; i < gate_qcount; ++i)
-        gate << aqs::Hadamard(i);
+        gate << aqs::H(i);
 
     auto func1 = [&](){
-        aqs::ControlCircuitGate(gate, control, target)(qc);
+        aqs::ControlGate(gate, control, target)(qc);
         qc.circuit().eval();
     };
 
@@ -464,10 +464,10 @@ void circuit_gate_test(int qubit_count, int gate_qcount, int test_count)
     aqs::QCircuit gate(gate_qcount);
 
     for (int i = 0; i < gate_qcount; ++i)
-        gate << aqs::Hadamard(i);
+        gate << aqs::H(i);
 
     auto func = [&](){
-        aqs::CircuitGate(gate, 0)(qc);
+        aqs::Gate(gate, 0)(qc);
         qc.circuit().eval();
     };
 

@@ -37,18 +37,18 @@ namespace aqs
         {
             QCircuit temp(top_count);
             for (auto it = target_qubits.cbegin(); it != pivot; ++it)
-                temp << CircuitGate(gate, std::distance(target_qubits.cbegin(), it));
-            
-            current << ControlCircuitGate(temp, control_qubit, target_qubits.front());
+                temp << Gate(gate, std::distance(target_qubits.cbegin(), it));
+
+            current << ControlGate(temp, control_qubit, target_qubits.front());
         }
 
         if (bottom_count != 0)
         {
             QCircuit temp(bottom_count);
             for (auto it = pivot; it != target_qubits.cend(); ++it)
-                temp << CircuitGate(gate, std::distance(pivot, it));
+                temp << Gate(gate, std::distance(pivot, it));
 
-            current << ControlCircuitGate(temp, control_qubit, *pivot);
+            current << ControlGate(temp, control_qubit, *pivot);
         }
 
         return current;
@@ -64,7 +64,7 @@ namespace aqs
         QCircuit qc(qubits);
         if (target_qubit_begin == qubits - 1)
         {
-            qc << Control_Phase(control_qubit, target_qubit_begin, angle);
+            qc << CPhase(control_qubit, target_qubit_begin, angle);
         }
         else
         {
@@ -90,20 +90,20 @@ namespace aqs
         QCircuit qc(qubits);
         if (control_qubit_count == 1)
         {
-            qc << ControlCircuitGate(gate, control_qubit_begin, target_qubit_begin);
+            qc << ControlGate(gate, control_qubit_begin, target_qubit_begin);
             return qc;
         }
         else
         {
             QCircuit temp(gate.qubit_count() + 1 + target_qubit_begin - control_qubit_begin - control_qubit_count);
-            temp << ControlCircuitGate(gate, 0, target_qubit_begin - control_qubit_begin - control_qubit_count + 1);
+            temp << ControlGate(gate, 0, target_qubit_begin - control_qubit_begin - control_qubit_count + 1);
             for (uint32_t i = 0; i < control_qubit_count - 1; ++i)
             {
                 QCircuit tmp(temp.qubit_count() + 1);
-                tmp << ControlCircuitGate(temp, 0, 1);
+                tmp << ControlGate(temp, 0, 1);
                 temp = tmp;
             }
-            qc << CircuitGate(temp, control_qubit_begin);
+            qc << Gate(temp, control_qubit_begin);
             return qc;
         }
     }
@@ -138,12 +138,12 @@ namespace aqs
             {
                 const auto& control_qubit = *it;
                 QCircuit temp(control_qubit - target_qubit_begin + 1);
-                temp << ControlCircuitGate(current, control_qubit - target_qubit_begin, 0);
+                temp << ControlGate(current, control_qubit - target_qubit_begin, 0);
                 current = std::move(temp);
             }
 
             QCircuit temp(qubits - target_qubit_begin);
-            temp << ControlCircuitGate(current, bottom.back() - target_qubit_begin, 0);
+            temp << ControlGate(current, bottom.back() - target_qubit_begin, 0);
             current = std::move(temp);
         }
 
@@ -155,12 +155,12 @@ namespace aqs
             {
                 const auto& control_qubit = *it;
                 QCircuit temp(qubits - control_qubit);
-                temp << ControlCircuitGate(current, 0, target_qubit_begin - control_qubit);
+                temp << ControlGate(current, 0, target_qubit_begin - control_qubit);
                 current = std::move(temp);
             }
 
             QCircuit temp(qubits);
-            temp << ControlCircuitGate(current, top.front(), qubits - current.qubit_count());
+            temp << ControlGate(current, top.front(), qubits - current.qubit_count());
             current = std::move(temp);
         }
 

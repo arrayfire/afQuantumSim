@@ -492,8 +492,8 @@ void test_qsim_gates()
     qs.qubit(3) = QState::one();
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Hadamard(2);
-    qc << aqs::Hadamard(3);
+    qc << aqs::H(2);
+    qc << aqs::H(3);
     qc.generate_circuit();
     qs.simulate(qc);
 
@@ -502,7 +502,7 @@ void test_qsim_gates()
     assert(cfequal(qs.state(0b0010), af::cfloat{0.5f, 0.f}, diff));
     assert(cfequal(qs.state(0b0011), af::cfloat{-0.5f, 0.f}, diff));
 
-    std::vector<aqs::Hadamard> hgates = { aqs::Hadamard{2} , aqs::Hadamard{3} };
+    std::vector<aqs::H> hgates = { aqs::H{2} , aqs::H{3} };
     qc.reset_circuit();
     qs.generate_global_state();
     qc << hgates;
@@ -544,10 +544,57 @@ void test_qsim_gates()
 
     // RotX gate test
     qc.reset_circuit();
+    qs.qubit(0) = aqs::QState::zero();
+    qs.qubit(1) = aqs::QState::zero();
+    qs.qubit(2) = aqs::QState::minus();
+    qs.qubit(3) = aqs::QState::zero();
+
+    qc << aqs::RotX(2, aqs::pi / 2.f);
+
     qs.generate_global_state();
-    qc << aqs::RotX(1, aqs::pi / 4.f);
     qc.generate_circuit();
     qs.simulate(qc);
+
+    assert(cfequal(qs.state(0b0000), af::cfloat{0.5, 0.5}, diff));
+    assert(cfequal(qs.state(0b0001), af::cfloat{0.0, 0.0}, diff));
+    assert(cfequal(qs.state(0b0010), af::cfloat{-0.5, -0.5}, diff));
+    assert(cfequal(qs.state(0b0011), af::cfloat{0.0, 0.0}, diff));
+
+    // RotY gate test
+    qc.reset_circuit();
+    qs.qubit(0) = aqs::QState::zero();
+    qs.qubit(1) = aqs::QState::zero();
+    qs.qubit(2) = aqs::QState::one();
+    qs.qubit(3) = aqs::QState::zero();
+
+    qc << aqs::RotY(2, std::acos(0.6f) * 2.f);
+
+    qs.generate_global_state();
+    qc.generate_circuit();
+    qs.simulate(qc);
+
+    assert(cfequal(qs.state(0b0000), af::cfloat{-0.8, 0.0}, diff));
+    assert(cfequal(qs.state(0b0001), af::cfloat{0.0, 0.0}, diff));
+    assert(cfequal(qs.state(0b0010), af::cfloat{0.6, 0.0}, diff));
+    assert(cfequal(qs.state(0b0011), af::cfloat{0.0, 0.0}, diff));
+
+    // RotZ gate test
+    qc.reset_circuit();
+    qs.qubit(0) = aqs::QState::zero();
+    qs.qubit(1) = aqs::QState::zero();
+    qs.qubit(2) = aqs::QState::minus();
+    qs.qubit(3) = aqs::QState::zero();
+
+    qc << aqs::RotZ(2, -aqs::pi / 2.f);
+
+    qs.generate_global_state();
+    qc.generate_circuit();
+    qs.simulate(qc);
+
+    assert(cfequal(qs.state(0b0000), af::cfloat{0.5, 0.5}, diff));
+    assert(cfequal(qs.state(0b0001), af::cfloat{0.0, 0.0}, diff));
+    assert(cfequal(qs.state(0b0010), af::cfloat{-0.5, 0.5}, diff));
+    assert(cfequal(qs.state(0b0011), af::cfloat{0.0, 0.0}, diff));
 
     // XOR gate test
     std::cout << "Xor gate\n";
@@ -593,8 +640,8 @@ void test_qsim_gates()
     qs.qubit(3) = aqs::QState({0.6f, 0.0f} , {0.0f, 0.8f});
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << Control_Not(0, 2);
-    qc << Control_Not(1, 3);
+    qc << CNot(0, 2);
+    qc << CNot(1, 3);
     qc.generate_circuit();
     qs.simulate(qc);
 
@@ -611,8 +658,8 @@ void test_qsim_gates()
     qs.qubit(3) = aqs::QState({0.6f, 0.0f} , {0.0f, 0.8f});
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Control_X(0, 2);
-    qc << aqs::Control_X(1, 3);
+    qc << aqs::CX(0, 2);
+    qc << aqs::CX(1, 3);
     qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{0.0f, 0.48f}, diff));
@@ -622,7 +669,7 @@ void test_qsim_gates()
 
     //Group Control-X gate insertion test
     std::cout << "CX gate through group insertion\n";
-    std::vector<aqs::Control_X> cxgates = { aqs::Control_X{0, 2} , aqs::Control_X{1, 3} };
+    std::vector<aqs::CX> cxgates = { aqs::CX{0, 2} , aqs::CX{1, 3} };
     qs.generate_global_state();
     qc.reset_circuit();
     qc << cxgates;
@@ -641,8 +688,8 @@ void test_qsim_gates()
     qs.qubit(3) = aqs::QState({0.6f, 0.0f} , {0.0f, 0.8f});
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Control_Y(0, 2);
-    qc << aqs::Control_Y(1, 3);
+    qc << aqs::CY(0, 2);
+    qc << aqs::CY(1, 3);
     qc.generate_circuit();
     qs.simulate(qc);
    
@@ -659,8 +706,8 @@ void test_qsim_gates()
     qs.qubit(3) = aqs::QState({0.6f, 0.0f} , {0.0f, 0.8f});
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Control_Z(0, 2);
-    qc << aqs::Control_Z(1, 3);
+    qc << aqs::CZ(0, 2);
+    qc << aqs::CZ(1, 3);
     qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{0.36f, 0.0f}, diff));
@@ -676,8 +723,8 @@ void test_qsim_gates()
     qs.qubit(3) = aqs::QState({0.6f, 0.0f} , {0.0f, 0.8f});
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Control_Phase(0, 2, std::atan(0.75f));
-    qc << aqs::Control_Phase(1, 3, std::atan(0.75f));
+    qc << aqs::CPhase(0, 2, std::atan(0.75f));
+    qc << aqs::CPhase(1, 3, std::atan(0.75f));
     qc.generate_circuit();
     qs.simulate(qc);
 
@@ -685,6 +732,64 @@ void test_qsim_gates()
     assert(cfequal(qs.state(0b0101), af::cfloat{-0.288f, 0.384f}, diff));
     assert(cfequal(qs.state(0b0110), af::cfloat{0.0f, 0.48f}, diff));
     assert(cfequal(qs.state(0b0111), af::cfloat{-0.512f, -0.384f}, diff));
+
+    // CRotX gate test
+    qc.reset_circuit();
+    qs.qubit(0) = aqs::QState::zero();
+    qs.qubit(1) = aqs::QState::one();
+    qs.qubit(2) = aqs::QState::minus();
+    qs.qubit(3) = aqs::QState::minus();
+
+    const float invsqrt8 = 0.3535533906f;
+    qc << aqs::CRotX(0, 2, aqs::pi / 2.f);
+    qc << aqs::CRotX(1, 3, aqs::pi / 2.f);
+
+    qs.generate_global_state();
+    qc.generate_circuit();
+    qs.simulate(qc);
+
+    assert(cfequal(qs.state(0b0100), af::cfloat{invsqrt8, invsqrt8}, diff));
+    assert(cfequal(qs.state(0b0101), af::cfloat{-invsqrt8, -invsqrt8}, diff));
+    assert(cfequal(qs.state(0b0110), af::cfloat{-invsqrt8, -invsqrt8}, diff));
+    assert(cfequal(qs.state(0b0111), af::cfloat{invsqrt8, invsqrt8}, diff));
+
+    // CRotY gate test
+    qc.reset_circuit();
+    qs.qubit(0) = aqs::QState::zero();
+    qs.qubit(1) = aqs::QState::one();
+    qs.qubit(2) = aqs::QState::one();
+    qs.qubit(3) = aqs::QState::one();
+
+    qc << aqs::CRotY(0, 2, std::acos(0.6f) * 2.f);
+    qc << aqs::CRotY(1, 3, std::acos(0.6f) * 2.f);
+
+    qs.generate_global_state();
+    qc.generate_circuit();
+    qs.simulate(qc);
+
+    assert(cfequal(qs.state(0b0100), af::cfloat{0.0, 0.0}, diff));
+    assert(cfequal(qs.state(0b0101), af::cfloat{0.0, 0.0}, diff));
+    assert(cfequal(qs.state(0b0110), af::cfloat{-0.8, 0.0}, diff));
+    assert(cfequal(qs.state(0b0111), af::cfloat{0.6, 0.0}, diff));
+
+    // CRotZ gate test
+    qc.reset_circuit();
+    qs.qubit(0) = aqs::QState::zero();
+    qs.qubit(1) = aqs::QState::one();
+    qs.qubit(2) = aqs::QState::minus();
+    qs.qubit(3) = aqs::QState::minus();
+
+    qc << aqs::CRotZ(0, 2, -aqs::pi / 2.f);
+    qc << aqs::CRotZ(1, 3, -aqs::pi / 2.f);
+
+    qs.generate_global_state();
+    qc.generate_circuit();
+    qs.simulate(qc);
+
+    assert(cfequal(qs.state(0b0100), af::cfloat{invsqrt8, invsqrt8}, diff));
+    assert(cfequal(qs.state(0b0101), af::cfloat{-invsqrt8, invsqrt8}, diff));
+    assert(cfequal(qs.state(0b0110), af::cfloat{-invsqrt8, -invsqrt8}, diff));
+    assert(cfequal(qs.state(0b0111), af::cfloat{invsqrt8, -invsqrt8}, diff));
 
     // OR gate test
     std::cout << "OR gate\n";
@@ -748,7 +853,7 @@ void test_qsim_gates()
     qs.qubit(3) = aqs::QState({0.0f, 0.8f} , {0.6f, 0.0f});
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Control_Swap(0, 2, 3);
+    qc << aqs::CSwap(0, 2, 3);
     qc.generate_circuit();
     qs.simulate(qc);
 
@@ -759,7 +864,7 @@ void test_qsim_gates()
 
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Control_Swap(1, 2, 3);
+    qc << aqs::CSwap(1, 2, 3);
     qc.generate_circuit();
     qs.simulate(qc);
 
@@ -776,8 +881,8 @@ void test_qsim_gates()
     qs.qubit(3) = QState::zero();
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::CControl_Not(0, 1, 2);
-    qc << aqs::CControl_Not(1, 0, 3);
+    qc << aqs::CCNot(0, 1, 2);
+    qc << aqs::CCNot(1, 0, 3);
     qc.generate_circuit();
     qs.simulate(qc);
     assert(cfequal(qs.state(0b0100), af::cfloat{1.0f, 0.0f}, diff));
@@ -798,32 +903,32 @@ void test_qsim_gates()
     // Custom Control Gate
     std::cout << "CCustom gate\n";
     aqs::QCircuit temp(2);
-    temp << aqs::Hadamard(0);
-    temp << aqs::Control_Not(0, 1);
+    temp << aqs::H(0);
+    temp << aqs::CNot(0, 1);
     temp << aqs::Z(0);
     temp << aqs::Swap(0, 1);
 
     qc.reset_circuit();
-    qc << ControlCircuitGate(temp, 0, 2);
+    qc << ControlGate(temp, 0, 2);
 
     aqs::QCircuit ref(4);
-    ref << aqs::Control_Hadamard(0, 2);
-    ref << aqs::CControl_Not(0, 2, 3);
-    ref << aqs::Control_Z(0, 2);
-    ref << aqs::Control_Swap(0, 2, 3);
+    ref << aqs::CH(0, 2);
+    ref << aqs::CCNot(0, 2, 3);
+    ref << aqs::CZ(0, 2);
+    ref << aqs::CSwap(0, 2, 3);
 
     qc.generate_circuit();
     ref.generate_circuit();
     assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
 
     qc.reset_circuit();
-    qc << ControlCircuitGate(temp, 2, 0);
+    qc << ControlGate(temp, 2, 0);
     
     ref.reset_circuit();
-    ref << aqs::Control_Hadamard(2, 0);
-    ref << aqs::CControl_Not(0, 2, 1);
-    ref << aqs::Control_Z(2, 0);
-    ref << aqs::Control_Swap(2, 0, 1);
+    ref << aqs::CH(2, 0);
+    ref << aqs::CCNot(0, 2, 1);
+    ref << aqs::CZ(2, 0);
+    ref << aqs::CSwap(2, 0, 1);
     
     qc.generate_circuit();
     ref.generate_circuit();
@@ -833,15 +938,15 @@ void test_qsim_gates()
     std::cout << "Custom gate\n";
     qc.reset_circuit();
     temp.reset_circuit();
-    temp << aqs::Hadamard(0);
-    temp << aqs::Control_Phase(0, 1, 1.0f);
+    temp << aqs::H(0);
+    temp << aqs::CPhase(0, 1, 1.0f);
     temp << aqs::X(1);
     temp << aqs::Swap(0, 1);
-    qc << CircuitGate(temp, 1);
+    qc << Gate(temp, 1);
 
     ref.reset_circuit();
-    ref << aqs::Hadamard(1);
-    ref << aqs::Control_Phase(1, 2, 1.0f);
+    ref << aqs::H(1);
+    ref << aqs::CPhase(1, 2, 1.0f);
     ref << aqs::X(2);
     ref << aqs::Swap(1, 2);
 
@@ -864,8 +969,8 @@ void test_qsim_gates()
     qs.qubit(2) = aqs::QState::one();
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << aqs::Control_Hadamard(0, 1);
-    qc << aqs::Control_Hadamard(3, 2);
+    qc << aqs::CH(0, 1);
+    qc << aqs::CH(3, 2);
 
     qc.generate_circuit();
     qs.simulate(qc);
@@ -902,9 +1007,8 @@ void test_special_gates()
         QSimulator qs(6);
 
         uint32_t target = 3;
-        QCircuit xc(1);
-        xc << aqs::X(0);
-        qc << aqs::CircuitGate(aqs::NControl_Gate(6, { 0, 2, 4, 5 }, target, xc), 0);
+
+        qc << aqs::Gate(aqs::NControl_Gate(6, { 0, 2, 4, 5 }, target, X::gate()), 0);
 
         for (int i = 0; i < qs.qubit_count(); ++i)
             qs.qubit(i) = aqs::QState::one();
@@ -933,13 +1037,11 @@ void test_special_gates()
     }
 
     {
-        QCircuit xc(1); xc << X(0);
-
         QCircuit qc(4);
-        qc << CircuitGate(NControl_Gate(4, {3}, 0, xc), 0);
+        qc << Gate(NControl_Gate(4, {3}, 0, X::gate()), 0);
 
         QCircuit ref(4);
-        ref << Control_X(3, 0);
+        ref << CX(3, 0);
 
         qc.generate_circuit();
         ref.generate_circuit();
@@ -949,8 +1051,21 @@ void test_special_gates()
         qc.reset_circuit();
         ref.reset_circuit();
 
-        qc << CircuitGate(NControl_Gate(4, {0, 3}, 2, xc), 0);
-        ref << CControl_Not(0, 3, 2);
+        qc << Gate(NControl_Gate(4, {0, 3}, 2, X::gate()), 0);
+        ref << CCNot(0, 3, 2);
+
+        qc.generate_circuit();
+        ref.generate_circuit();
+
+        assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
+    }
+
+    {
+        QCircuit qc(4);
+        qc << Gate(Control_Group_Gate(4, 1, {0, 2, 3}, X::gate()), 0);
+        
+        QCircuit ref(4);
+        ref << CX{1, 0} << CX{1, 2} << CX{1, 3};
 
         qc.generate_circuit();
         ref.generate_circuit();

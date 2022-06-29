@@ -581,9 +581,9 @@ public:
             throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
         aqs::QCircuit h(1);
-        h << aqs::Hadamard{0};
+        h << aqs::H{0};
 
-        qc << aqs::ControlCircuitGate{h, control_qubit, target_qubit};
+        qc << aqs::ControlGate{h, control_qubit, target_qubit};
 
         return qc;
     }

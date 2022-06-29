@@ -142,23 +142,23 @@ void quantum_2bit_adder_example()
     aqs::QCircuit qc(7);
 
     // Add main bits without carry
-    qc << CControl_Not(0, 2, 5);
-    qc << CControl_Not(1, 3, 6);
+    qc << CCNot(0, 2, 5);
+    qc << CCNot(1, 3, 6);
 
     // Determine carry bits
-    qc << Control_Not(0, 2);
-    qc << Control_Not(1, 3);
+    qc << CNot(0, 2);
+    qc << CNot(1, 3);
 
     // Add carry bits from input
-    qc << CControl_Not(3, 5, 6);
+    qc << CCNot(3, 5, 6);
 
     // Add carry bits to output
-    qc << Control_Not(2, 4);
-    qc << Control_Not(3, 5);
+    qc << CNot(2, 4);
+    qc << CNot(3, 5);
 
     // Restore original input bits
-    qc << Control_Not(0, 2);
-    qc << Control_Not(1, 3);
+    qc << CNot(0, 2);
+    qc << CNot(1, 3);
 
     auto print_result = [](int val1, int val2, aqs::QSimulator& qs, aqs::QCircuit& qc) {
         qs.qubit(0) = val1 & 1 ? aqs::QState::one() : aqs::QState::zero();
@@ -201,8 +201,8 @@ void quantum_entanglement_example()
 
     std::cout << "\n*** Entanglement of 2 qubits ***\n\n";
     // Entagle 2 qubits
-    qc << Hadamard(0);
-    qc << Control_Not(0, 1);
+    qc << H(0);
+    qc << CNot(0, 1);
     qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "State of entangled q[0] and q[1]:\n";
@@ -213,7 +213,7 @@ void quantum_entanglement_example()
     //Entangle 3 qubits
     qc.generate_circuit();
     qs.generate_global_state();
-    qc << Control_Not(0, 2);
+    qc << CNot(0, 2);
     qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "State of entangled q[0], q[1], and q[2]:\n";
@@ -223,7 +223,7 @@ void quantum_entanglement_example()
     std::cout << "\n*** Entanglement of 4 qubits ***\n\n";
     //Entangle 4 qubits
     qs.generate_global_state();
-    qc << Control_Not(0, 3);
+    qc << CNot(0, 3);
     qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "State of entangled q[0], q[1], q[2], and q[3]:\n";
@@ -234,10 +234,10 @@ void quantum_entanglement_example()
     //Entangle 2 pair of qubits
     qs.generate_global_state();
     qc.reset_circuit();
-    qc << Hadamard(0);
-    qc << Hadamard(2);
-    qc << Control_Not(0, 1);
-    qc << Control_Not(2, 3);
+    qc << H(0);
+    qc << H(2);
+    qc << CNot(0, 1);
+    qc << CNot(2, 3);
     qc.generate_circuit();
     qs.simulate(qc);
     std::cout << "State of entangled (q[0], q[1]), and (q[2], q[3]):\n";
@@ -263,8 +263,8 @@ void quantum_superposition_example()
     //aqs::print_profile(qs.profile_measure_all(reps));
 
     // Put qubits 0 and 2 into superposition
-    qc << Hadamard(0);
-    qc << Hadamard(2);
+    qc << H(0);
+    qc << H(2);
     qc.generate_circuit();
     qs.simulate(qc);
 
@@ -303,7 +303,7 @@ void quantum_grover_example()
     aqs::QCircuit oracle_gate = aqs::grover_oracle(qubits, marked_solution);
     aqs::QCircuit grover_search_gate = aqs::grover_search(qubits, oracle_gate, iterations);
     std::cout << grover_search_gate.representation() << std::endl;
-    qc << CircuitGate(grover_search_gate, 0);
+    qc << Gate(grover_search_gate, 0);
 
     qc.generate_circuit();
     qs.simulate(qc);
@@ -356,7 +356,7 @@ void quantum_fourier_transform_example()
     aqs::print_global_state(qs);
 
     aqs::QCircuit fourier_gate = aqs::fourier_transform(qubits);
-    qc << CircuitGate(fourier_gate, 0);
+    qc << Gate(fourier_gate, 0);
 
     qc.generate_circuit();
     qs.simulate(qc);
@@ -365,7 +365,7 @@ void quantum_fourier_transform_example()
 
     aqs::QCircuit inverse_fourier_gate = aqs::inverse_fourier_transform(qubits);
     qc.reset_circuit();
-    qc << CircuitGate(inverse_fourier_gate, 0);
+    qc << Gate(inverse_fourier_gate, 0);
 
     qc.generate_circuit();
     qs.simulate(qc);
@@ -392,7 +392,7 @@ void quantum_phase_estimation_example()
     qs.generate_global_state();
 
     for (int i = 0; i < qcount; ++i)
-        qc << Hadamard(i);
+        qc << H(i);
 
     float theta = 1.f/5.f;
     float angle = aqs::pi * 2.f * theta;
@@ -400,7 +400,7 @@ void quantum_phase_estimation_example()
     std::cout << "\nEstimating a phase shift of " << theta << '\n';
 
     for (int i = 0; i < qcount; ++i)
-        qc << Control_Phase(i, qcount, angle * static_cast<float>(1 << (qcount - 1 - i)));
+        qc << CPhase(i, qcount, angle * static_cast<float>(1 << (qcount - 1 - i)));
 
     qc.generate_circuit();
     qs.simulate(qc);
@@ -408,7 +408,7 @@ void quantum_phase_estimation_example()
     //aqs::print_global_state(qs);
     qs.generate_global_state();
 
-    qc << CircuitGate(aqs::inverse_fourier_transform(qcount), 0, "QFT†");
+    qc << Gate(aqs::inverse_fourier_transform(qcount), 0, "QFT†");
 
     qc.generate_circuit();
     qs.simulate(qc);
@@ -441,9 +441,9 @@ void quantum_shor_algorithm()
 
     aqs::QCircuit h1(output / 2), h2(output - (output / 2));
     for (int i = 0; i < h1.qubit_count(); ++i)
-        h1 << Hadamard(i);
+        h1 << H(i);
     for (int i = 0; i < h2.qubit_count(); ++i)
-        h2 << Hadamard(i);
+        h2 << H(i);
 
     aqs::QSimulator qs(output + 4);
     aqs::QCircuit qc(output + 4);
@@ -451,8 +451,8 @@ void quantum_shor_algorithm()
     qs.qubit(qs.qubit_count() - 1) = aqs::QState::one();
 
     std::cout << "Adding Hadamard Gates...\n";
-    qc << CircuitGate(h1, 0);
-    qc << CircuitGate(h2, h1.qubit_count());
+    qc << Gate(h1, 0);
+    qc << Gate(h2, h1.qubit_count());
 
 
     // a^(2^j) mod 15 gate
@@ -482,7 +482,7 @@ void quantum_shor_algorithm()
         }
 
         for (int i = 0; i < j; ++i)
-            temp << CircuitGate(temp, 0);
+            temp << Gate(temp, 0);
 
         return temp;
     };
@@ -492,11 +492,11 @@ void quantum_shor_algorithm()
     for (int i = 0; i < output; ++i)
     {
         std::cout << "Adding Control_mod15 a^(2^" << i << ") Gate...\n";
-        qc << ControlCircuitGate(a2jmod15(a, i), output - 1 - i, output, "a^(2^" + std::to_string(i) + ") mod 15");
+        qc << ControlGate(a2jmod15(a, i), output - 1 - i, output, "a^(2^" + std::to_string(i) + ") mod 15");
     }
 
     std::cout << "Adding Fourier Transform Gate...\n";
-    qc << CircuitGate(aqs::inverse_fourier_transform(output), 0, "QFT†");
+    qc << Gate(aqs::inverse_fourier_transform(output), 0, "QFT†");
 
     std::cout << "Generating Global State...\n";
     qs.generate_global_state();
@@ -589,15 +589,15 @@ void quantum_constant_addition()
     aqs::QSimulator qs(qubits);
     aqs::QCircuit qc(qubits);
     
-    qc << CircuitGate(aqs::fourier_transform(qubits), 0, "QFT");
+    qc << Gate(aqs::fourier_transform(qubits), 0, "QFT");
 
     aqs::QCircuit add_circuit(qubits);
     for (int i = 0; i < qubits; ++i)
         add_circuit << Phase(i, const_val * aqs::pi / static_cast<float>(1 << i));
 
-    qc << CircuitGate(add_circuit, 0);
+    qc << Gate(add_circuit, 0);
 
-    qc << CircuitGate(aqs::inverse_fourier_transform(qubits), 0, "QFT†");
+    qc << Gate(aqs::inverse_fourier_transform(qubits), 0, "QFT†");
     for (int i = 0; i < qubits; ++i)
         qs.qubit(i) = (input_value & (1 << i)) ? aqs::QState::one() : aqs::QState::zero();
 
@@ -637,20 +637,20 @@ void quantum_two_addition()
 
     //Calculate |a> + |b>
     // Execute Fourier Transform on b input
-    qc << CircuitGate(aqs::fourier_transform(input + 1), input, "QFT");
+    qc << Gate(aqs::fourier_transform(input + 1), input, "QFT");
 
     // Execute Fourier Transform on a input stored on b input
     for (int i = 0; i < input; ++i)
-        qc << Control_Phase(i, input * 2, aqs::pi / (1 << (input - i)));
+        qc << CPhase(i, input * 2, aqs::pi / (1 << (input - i)));
 
     for (int i = input; i >= 0; --i)
     {
         for (int j = 0; j < i; ++j)
-            qc << Control_Phase(j, input + i - 1, aqs::pi / (1 << (i - j - 1)));
+            qc << CPhase(j, input + i - 1, aqs::pi / (1 << (i - j - 1)));
     }
 
     // Return back to computational basis
-    qc << CircuitGate(aqs::inverse_fourier_transform(input + 1), input, "QFT†");
+    qc << Gate(aqs::inverse_fourier_transform(input + 1), input, "QFT†");
 
     std::cout << "\nAddition of two numbers of " << input << " bits\n"
               << "First " << input << " qubits are number A and the next " << input << " qubits are number B\n"
@@ -698,11 +698,11 @@ void quantum_counting()
     aqs::QCircuit qc(output_count + search_count);
 
     for (int i = 0; i < output_count + search_count; ++i)
-        qc << Hadamard(i);
+        qc << H(i);
     for (int i = 0; i < search_count; ++i)
-        qc << ControlCircuitGate(aqs::grover_iteration(search_count, aqs::grover_oracle(search_count, 0), 1 << i), i, output_count);
+        qc << ControlGate(aqs::grover_iteration(search_count, aqs::grover_oracle(search_count, 0), 1 << i), i, output_count);
     
-    qc << CircuitGate(aqs::inverse_fourier_transform(output_count), 0);
+    qc << Gate(aqs::inverse_fourier_transform(output_count), 0);
 
     qc.generate_circuit();
     qs.simulate(qc);

@@ -26,7 +26,7 @@
 namespace aqs
 {
 
-static const float pi = 3.14159265358979323846f;
+static constexpr float pi = 3.14159265358979323846f;
 static constexpr uint32_t max_qubit_count = 30;
 
 class QGate;
@@ -223,11 +223,6 @@ public:
      */
     QCircuit(uint32_t qubit_count);
 
-    // Global Operations
-    void Global_Measure();
-
-    void Measure(uint32_t qubit);
-
     template<typename T>
     friend QCircuit& operator<<(QCircuit& qc, const T& gate);
 
@@ -247,6 +242,11 @@ public:
 
     const std::string& representation() const noexcept { return representation_; }
 
+    /**
+     * @brief Starts the computation of the matrix representation of the circuit
+     *        from the added gates
+     * 
+     */
     void generate_circuit();
 
     /**
@@ -417,11 +417,46 @@ private:
 class QGate
 {
 public:
+    /**
+     * @brief Applies the gate matrix to the circuit matrix
+     * 
+     * @param qc circuit to apply the gate to
+     * @return QCircuit& reference to the input circuit
+     */
     virtual QCircuit& operator()(QCircuit& qc) const = 0;
+
+    /**
+     * @brief Returns a string representation of the gate
+     * 
+     * @return std::string 
+     */
     virtual std::string to_string() const = 0;
+
+    /**
+     * @brief Returns a unsigned integer that uniquely identifies
+     *        the gate
+     * 
+     * @return uint32_t 
+     */
     virtual uint32_t type() const noexcept = 0;
-    virtual std::vector<uint32_t> qubit_positions() const = 0;
+
+    /**
+     * @brief Checks if the gate can be added to the passed circuit
+     * 
+     * @note This function may throw with the error before returning false
+     * 
+     * @param qc circuit in which the gate will be added
+     * @return true the gate will be added successfully to the circuit
+     * @return false the gate will not be added to the circuit
+     */
+    virtual bool check(const QCircuit& qc) const = 0;
+
 protected:
+
+    /**
+     * @brief Lists of unique identifiers for the internal gates implemented
+     * 
+     */
     enum class GateTypes : uint32_t
     {
         Barrier,
@@ -435,8 +470,12 @@ template<typename T>
 QCircuit& operator<<(QCircuit& qc, const T& gate)
 {
     static_assert(std::is_base_of<QGate, T>::value, "Gate must inherit from QGate class");
-    qc.representation_.append(gate.to_string());
-    qc.gate_list().push_back(std::make_shared<T>(gate));
+    if (gate.check(qc))
+    {
+        qc.representation_.append(gate.to_string());
+        qc.gate_list().push_back(std::make_shared<T>(gate));
+    }
+
     return qc;
 }
 
@@ -446,21 +485,25 @@ QCircuit& operator<<(QCircuit& qc, const std::vector<T>& gates)
     static_assert(std::is_base_of<QGate, T>::value, "Gate must inherit from QGate class");
     for (const auto& gate : gates)
     {
-        qc.representation_.append(gate.to_string());
-        qc.gate_list().push_back(std::make_shared<T>(gate));
+        if (gate.check(qc))
+        {
+            qc.representation_.append(gate.to_string());
+            qc.gate_list().push_back(std::make_shared<T>(gate));
+        }
     }
+
     return qc;
 }
 
 class Barrier : public QGate
 {
 public:
-    Barrier(bool visible_ = true) noexcept
-        :visible{visible_} {}
+    Barrier(bool visible_ = true) noexcept : visible{visible_} {}
+
+    bool check(const QCircuit&) const override { return true; }
     QCircuit& operator()(QCircuit& qc) const override { return qc; }
     std::string to_string() const override { return visible ? "B;" : "P;"; }
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Barrier); }
-    std::vector<uint32_t> qubit_positions() const override { return {}; };
 
     static uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Barrier); }
 
@@ -470,13 +513,19 @@ public:
 class X : public QGate
 {
 public:
-    X(uint32_t target_qubit_) : target_qubit{target_qubit_} {}
+    X(uint32_t target_qubit_) noexcept : target_qubit{target_qubit_} {}
+
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::X); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; };
+    bool check(const QCircuit&) const override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::X); }
+    static const QCircuit& gate() {
+        static QCircuit qc = [](){ QCircuit qc(1); qc << X{0}; qc.generate_circuit(); return qc; }();
+        return qc;
+    }
+
     uint32_t target_qubit;
 };
 
@@ -485,13 +534,18 @@ using Not = X;
 class Y : public QGate
 {
 public:
-    Y(uint32_t target_qubit_) : target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    Y(uint32_t target_qubit_) noexcept : target_qubit{target_qubit_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Y); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; };
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Y); }
+    static const QCircuit& gate() {
+        static QCircuit qc = [](){ QCircuit qc(1); qc << Y{0}; qc.generate_circuit(); return qc; }();
+        return qc;
+    }
  
     uint32_t target_qubit;
 };
@@ -499,13 +553,18 @@ public:
 class Z : public QGate
 {
 public:
-    Z(uint32_t target_qubit_) : target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    Z(uint32_t target_qubit_) noexcept : target_qubit{target_qubit_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Z); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; };
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Z); }
+    static const QCircuit& gate() {
+        static QCircuit qc = [](){ QCircuit qc(1); qc << Z{0}; qc.generate_circuit(); return qc; }();
+        return qc;
+    }
 
     uint32_t target_qubit;
 };
@@ -514,12 +573,17 @@ class RotX : public QGate
 {
 public:
     RotX(uint32_t target_qubit_, float angle_) noexcept : target_qubit{target_qubit_} , angle{angle_} {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::RotX); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotX); }
+    static QCircuit gate(float angle) {
+        static QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotX{0, angle}; qc.generate_circuit(); return qc; }();
+        return qc;
+    }
 
     uint32_t target_qubit;
     float angle;
@@ -529,12 +593,17 @@ class RotY : public QGate
 {
 public:
     RotY(uint32_t target_qubit_, float angle_) noexcept : target_qubit{target_qubit_} , angle{angle_} {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::RotY); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotY); }
+    static QCircuit gate(float angle) {
+        static QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotY{0, angle}; qc.generate_circuit(); return qc; }();
+        return qc;
+    }
 
     uint32_t target_qubit;
     float angle;
@@ -544,27 +613,37 @@ class RotZ : public QGate
 {
 public:
     RotZ(uint32_t target_qubit_, float angle_) noexcept : target_qubit{target_qubit_} , angle{angle_} {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::RotZ); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotZ); }
+    static QCircuit gate(float angle) {
+        static QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotZ{0, angle}; qc.generate_circuit(); return qc; }();
+        return qc;
+    }
 
     uint32_t target_qubit;
     float angle;
 };
 
-class Hadamard : public QGate
+class H : public QGate
 {
 public:
-    Hadamard(uint32_t target_qubit_) : target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    H(uint32_t target_qubit_) noexcept : target_qubit{target_qubit_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Hadamard); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; };
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Hadamard); }
+    static const QCircuit& gate() {
+        static QCircuit qc = [](){ QCircuit qc(1); qc << H{0}; qc.generate_circuit(); return qc; }();
+        return qc;
+    }
 
     uint32_t target_qubit;
 };
@@ -572,13 +651,15 @@ public:
 class Phase : public QGate
 {
 public:
-    Phase(uint32_t target_qubit_, float angle_) : target_qubit{target_qubit_}, angle{angle_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    Phase(uint32_t target_qubit_, float angle_) noexcept : target_qubit{target_qubit_}, angle{angle_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Phase); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; };
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Phase); }
+    static QCircuit gate(float angle);
 
     uint32_t target_qubit;
     float angle;
@@ -587,12 +668,13 @@ public:
 class Swap : public QGate
 {
 public:
-    Swap(uint32_t target_qubit_A_, uint32_t target_qubit_B_) : target_qubit_A{target_qubit_A_},
-                                                     target_qubit_B{target_qubit_B_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    Swap(uint32_t target_qubit_A_, uint32_t target_qubit_B_) noexcept
+        : target_qubit_A{target_qubit_A_} , target_qubit_B{target_qubit_B_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Swap); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit_A , target_qubit_B }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Swap); }
 
@@ -600,15 +682,16 @@ public:
     uint32_t target_qubit_B;
 };
 
-class Control_X : public QGate
+class CX : public QGate
 {
 public:
-    Control_X(uint32_t control_qubit_, uint32_t target_qubit_) : control_qubit{control_qubit_},
-                                                       target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    CX(uint32_t control_qubit_, uint32_t target_qubit_) noexcept
+        : control_qubit{control_qubit_} , target_qubit{target_qubit_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CX); }
-    std::vector<uint32_t> qubit_positions() const override { return { control_qubit , target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CX); }
 
@@ -616,30 +699,33 @@ public:
     uint32_t target_qubit;
 };
 
-class Control_Y : public QGate
+class CY : public QGate
 {
 public:
-    Control_Y(uint32_t control_qubit_, uint32_t target_qubit_) : control_qubit{control_qubit_},
-                                                       target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    CY(uint32_t control_qubit_, uint32_t target_qubit_) noexcept
+        : control_qubit{control_qubit_} , target_qubit{target_qubit_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CY); }
-    std::vector<uint32_t> qubit_positions() const override { return { control_qubit , target_qubit }; }
 
     static uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CY); }
+
     uint32_t control_qubit;
     uint32_t target_qubit;
 };
 
-class Control_Z : public QGate
+class CZ : public QGate
 {
 public:
-    Control_Z(uint32_t control_qubit_, uint32_t target_qubit_) : control_qubit{control_qubit_},
-                                                       target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    CZ(uint32_t control_qubit_, uint32_t target_qubit_) noexcept
+        : control_qubit{control_qubit_} , target_qubit{target_qubit_} {}
+
     std::string to_string() const override;
-        uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CZ); }
-    std::vector<uint32_t> qubit_positions() const override { return { control_qubit , target_qubit }; }
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
+    uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CZ); }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CZ); }
 
@@ -647,15 +733,16 @@ public:
     uint32_t target_qubit;
 };
 
-class Control_Hadamard : public QGate
+class CH : public QGate
 {
 public:
-    Control_Hadamard(uint32_t control_qubit_, uint32_t target_qubit_) : control_qubit{control_qubit_},
-                                                              target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    CH(uint32_t control_qubit_, uint32_t target_qubit_) noexcept
+        : control_qubit{control_qubit_} , target_qubit{target_qubit_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CHadamard); }
-    std::vector<uint32_t> qubit_positions() const override { return { control_qubit , target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CHadamard); }
 
@@ -663,19 +750,19 @@ public:
     uint32_t target_qubit;
 };
 
-using Control_Not = Control_X;
-using Xor = Control_X;
+using CNot = CX;
+using Xor = CX;
 
-class Control_Phase : public QGate
+class CPhase : public QGate
 {
 public:
-    Control_Phase(uint32_t control_qubit_, uint32_t target_qubit_, float angle_) : control_qubit{control_qubit_},
-                                                                         target_qubit{target_qubit_},
-                                                                         angle{angle_} {}
-    QCircuit& operator()(QCircuit&) const override;
+    CPhase(uint32_t control_qubit_, uint32_t target_qubit_, float angle_)
+        : control_qubit{control_qubit_} , target_qubit{target_qubit_} , angle{angle_} {}
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CPhase); }
-    std::vector<uint32_t> qubit_positions() const override { return { control_qubit , target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CPhase); }
 
@@ -684,15 +771,16 @@ public:
     float angle;
 };
 
-class Control_Swap : public QGate
+class CSwap : public QGate
 {
 public:
-    Control_Swap(uint32_t control_qubit_, uint32_t target_qubit_A_, uint32_t target_qubit_B_)
+    CSwap(uint32_t control_qubit_, uint32_t target_qubit_A_, uint32_t target_qubit_B_) noexcept
         : control_qubit{control_qubit_}, target_qubit_A{target_qubit_A_}, target_qubit_B{target_qubit_B_} {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CSwap); }
-    std::vector<uint32_t> qubit_positions() const override { return { control_qubit , target_qubit_A, target_qubit_B }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CSwap); }
 
@@ -701,15 +789,16 @@ public:
     uint32_t target_qubit_B;
 };
 
-class Control_RotX : public QGate
+class CRotX : public QGate
 {
 public:
-    Control_RotX(uint32_t control_qubit_, uint32_t target_qubit_, float angle_) noexcept
+    CRotX(uint32_t control_qubit_, uint32_t target_qubit_, float angle_) noexcept
         : control_qubit{ control_qubit_ } , target_qubit{ target_qubit_ } , angle{angle_} {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CRotX); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CRotX); }
 
@@ -718,15 +807,16 @@ public:
     float angle;
 };
 
-class Control_RotY : public QGate
+class CRotY : public QGate
 {
 public:
-    Control_RotY(uint32_t control_qubit_, uint32_t target_qubit_, float angle_) noexcept
+    CRotY(uint32_t control_qubit_, uint32_t target_qubit_, float angle_) noexcept
         : control_qubit{ control_qubit_ } , target_qubit{ target_qubit_ } , angle{ angle_ } {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CRotY); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CRotY); }
 
@@ -735,15 +825,16 @@ public:
     float angle;
 };
 
-class Control_RotZ : public QGate
+class CRotZ : public QGate
 {
 public:
-    Control_RotZ(uint32_t control_qubit_, uint32_t target_qubit_, float angle_) noexcept
+    CRotZ(uint32_t control_qubit_, uint32_t target_qubit_, float angle_) noexcept
         : control_qubit{ control_qubit_ } , target_qubit{ target_qubit_ } , angle{ angle_ } {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CRotZ); }
-    std::vector<uint32_t> qubit_positions() const override { return { target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CRotZ); }
 
@@ -753,15 +844,16 @@ public:
 };
 
 
-class CControl_Not : public QGate
+class CCNot : public QGate
 {
 public:
-    CControl_Not(uint32_t control_qubit_A_, uint32_t control_qubit_B_, uint32_t target_qubit_)
+    CCNot(uint32_t control_qubit_A_, uint32_t control_qubit_B_, uint32_t target_qubit_)
         : control_qubit_A{control_qubit_A_}, control_qubit_B{control_qubit_B_}, target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CCX); }
-    std::vector<uint32_t> qubit_positions() const override { return { control_qubit_A, control_qubit_B, target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CCX); }
 
@@ -770,17 +862,18 @@ public:
     uint32_t target_qubit;
 };
 
-using And = CControl_Not;
+using And = CCNot;
 
 class Or : public QGate
 {
 public:
-    Or(uint32_t control_qubit_A_, uint32_t control_qubit_B_, uint32_t target_qubit_)
+    Or(uint32_t control_qubit_A_, uint32_t control_qubit_B_, uint32_t target_qubit_) noexcept
         : control_qubit_A{control_qubit_A_}, control_qubit_B{control_qubit_B_}, target_qubit{target_qubit_} {}
-    QCircuit& operator()(QCircuit&) const override;
+
     std::string to_string() const override;
+    bool check(const QCircuit&) const override;
+    QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Or); }
-    std::vector<uint32_t> qubit_positions() const override { return { control_qubit_A , control_qubit_B, target_qubit }; }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Or); }
 
@@ -789,14 +882,15 @@ public:
     uint32_t target_qubit;
 };
 
-class CircuitGate : public QGate
+class Gate : public QGate
 {
 public:
-    CircuitGate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name = "");
+    Gate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name = "");
+
+    bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
-        uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Circuit); }
-    std::vector<uint32_t> qubit_positions() const override;
+    uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Circuit); }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Circuit); }
 
@@ -806,14 +900,15 @@ public:
     uint32_t target_qubit_begin;
 };
 
-class ControlCircuitGate : public QGate
+class ControlGate : public QGate
 {
 public:
-    ControlCircuitGate(const QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name = "");
+    ControlGate(const QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name = "");
+
+    bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::ControlCircuit); }
-    std::vector<uint32_t> qubit_positions() const override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::ControlCircuit); }
 

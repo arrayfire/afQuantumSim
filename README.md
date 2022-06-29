@@ -12,20 +12,28 @@ It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
 
 ## To Do
 
+### Completed
+* Optimize the generation of the fundamental `X`, `Y`, `Z`, `Hadamard`, `Phase` gates.
+
+* Optimize the addition of custom gates by use of `Gate` and `ControlGate`
+
+* Optimize the profiling of multiple measurements using `profile_measure` and `profile_measure_all`
+
+* Implement deferral of simulation (evaluation of the circuit matrix is controlled by user)
+
+* Implement rotation operations: `RotX`, `RotY`, `RotZ` and its controlled equivalents
+
+### WIP
+* Allow gates to add control qubits at any location
+
+* Implement tests for new features
+
+* Implement a rewire circuit feature
+
 ### High Priority
 * Allow for caching of the generated fundamental gates
 
-* Optimize the generation of the fundamental `X`, `Y`, `Z`, `Hadamard`, `Phase` gates.
-
-* Optimize the addition of custom gates by use of `CircuitGate` and `ControlCircuitGate`
-
-* Implement the addition of same gate multiple times with ranges to decrease computation
-
-* Allow gates to add control qubits at any location
-
 * Implement elaborated examples (see [link](https://qiskit.org/textbook/ch-applications/algs_for_apps_index.html))
-
-* Optimize the profiling of multiple measurements using `profile_measure` and `profile_measure_all`
 
 * Implement the adjoint operator
 
@@ -34,18 +42,16 @@ It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
 ### Medium Priority
 * Restructure the code to support more qubits and test
 
-* Implement deferral of simulation (currently the addition of matrix requires a matrix multiplication on the spot)
-
 * Implement an optimizer that, using the deferral of simulation, finds optimizations of the circuit created (removal of gates that cancel each other, combine the addition of the same gate multiple times in a pre-generated matrix)
 
-* Implement tests for new features
-
 ### Low Priority
-* Implement rotation operations: `ROTx`, `ROTy`, `ROTz`
-
 * Implement a way to regenerate the state of individual qubits from the global state
 
 * Restructure the implementation of the visualization of gates
+
+### Scrapped
+
+* Implement the addition of same gate multiple times with ranges to decrease computation
 
 ## Bugs
 * To report...

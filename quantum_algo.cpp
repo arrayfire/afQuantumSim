@@ -26,8 +26,7 @@ namespace aqs
         }
 
         //Generate a N-Control Z gate
-        QCircuit z(1); z << Z(0);
-        qc << CircuitGate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, z), 0);
+        qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
 
         for (int32_t i = 0; i < search_qubits; ++i)
         {
@@ -44,28 +43,27 @@ namespace aqs
 
         QCircuit qc(oracle.qubit_count());
         for (uint32_t i = 0; i < search_qubits; ++i)
-            qc << Hadamard(i);
+            qc << H(i);
 
-        QCircuit z(1); z << Z(0);
         for (uint32_t i = 0; i < iterations; ++i)
         {
             qc << Barrier(false);
-            qc << CircuitGate(oracle, 0, oracle_name);
+            qc << Gate(oracle, 0, oracle_name);
             qc << Barrier(false);
 
             for (uint32_t j = 0; j < search_qubits; ++j)
             {
-                qc << Hadamard(j);
+                qc << H(j);
                 qc << X(j);
             }
 
             //Generate a N-Control Z gate
-            qc << CircuitGate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, z), 0);
+            qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
 
             for (uint32_t j = 0; j < search_qubits; ++j)
             {
                 qc << X(j);
-                qc << Hadamard(j);
+                qc << H(j);
             }
         }
 
@@ -78,17 +76,17 @@ namespace aqs
         QCircuit z(1); z << Z(0);
         for (uint32_t i = 0; i < iterations; ++i)
         {
-            qc << CircuitGate(oracle, 0);
+            qc << Gate(oracle, 0);
             for (uint32_t j = 0; j < search_qubits; ++j)
             {
-                qc << Hadamard(j);
+                qc << H(j);
                 qc << X(j);
             }
-            qc << CircuitGate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, z), 0);
+            qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, z), 0);
             for (uint32_t j = 0; j < search_qubits; ++j)
             {
                 qc << X(j);
-                qc << Hadamard(j);
+                qc << H(j);
             }
         }
         return qc;
@@ -99,9 +97,9 @@ namespace aqs
         QCircuit qc(qubits);
         for (int32_t i = qubits - 1; i >= 0; --i)
         {
-            qc << Hadamard(i);
+            qc << H(i);
             for (uint32_t j = 0; j < i; ++j)
-                qc << Control_Phase(j, i, aqs::pi / (1 << (i - j)));
+                qc << CPhase(j, i, aqs::pi / (1 << (i - j)));
         }
 
         return qc;
@@ -113,9 +111,9 @@ namespace aqs
         for (uint32_t i = 0; i < qubits; ++i)
         {
             for (int32_t j = i - 1; j >= 0; --j)
-                qc << Control_Phase(j, i, -aqs::pi / (1 << (i - j)));
+                qc << CPhase(j, i, -aqs::pi / (1 << (i - j)));
 
-            qc << Hadamard(i);
+            qc << H(i);
         }
 
         return qc;

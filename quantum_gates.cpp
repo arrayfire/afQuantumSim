@@ -101,7 +101,7 @@ namespace aqs
             {
                 QCircuit tmp(temp.qubit_count() + 1);
                 tmp << ControlGate(temp, 0, 1);
-                temp = tmp;
+                temp = std::move(tmp);
             }
             qc << Gate(temp, control_qubit_begin);
             return qc;

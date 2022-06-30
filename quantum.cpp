@@ -1416,8 +1416,10 @@ bool ControlGate::check(const QCircuit& qc) const
         throw std::out_of_range{"Gate must fit inside the circuit qubit count"};
     if (target_qubit_begin <= control_qubit && control_qubit < target_qubit_begin + qubit_count)
         throw std::out_of_range{"Control qubit cannot be one of the target qubits of the gate"};
-    if (qubit_count + 1 > qubits)
+    if (qubit_count >= qubits)
         throw std::invalid_argument{"Cannot add a bigger gate to the circuit"};
+    if (control_qubit >= qubits)
+        throw std::out_of_range{"Control qubit must be inside the circuit qubit range"};
 
     return true;
 }

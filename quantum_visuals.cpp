@@ -43,7 +43,7 @@ void print_circuit_matrix(const QCircuit& circuit)
     std::cout << std::setprecision(7) << std::defaultfloat << std::noshowpos;
 }
 
-void print_profile(const std::array<int, 2>& profile)
+void print_profile(const std::array<uint32_t, 2>& profile)
 {
     int rep_count = profile[0] + profile[1];
     std::cout << std::setprecision(3) << std::fixed << std::noshowpos;

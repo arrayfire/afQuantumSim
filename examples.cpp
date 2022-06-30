@@ -8,6 +8,7 @@
  ********************************************************/
 #include "quantum.h"
 #include "quantum_algo.h"
+#include "quantum_gates.h"
 #include "quantum_visuals.h"
 
 #include "utils.h"
@@ -691,7 +692,7 @@ void quantum_counting()
     std::cout << "---- Example: Quantum Grover Counting ----\n";
 
     using namespace aqs;
-    int output_count = 3;
+    int output_count = 6;
     int search_count = 2;
 
     aqs::QSimulator qs(output_count + search_count);
@@ -699,20 +700,152 @@ void quantum_counting()
 
     for (int i = 0; i < output_count + search_count; ++i)
         qc << H(i);
-    for (int i = 0; i < search_count; ++i)
-        qc << ControlGate(aqs::grover_iteration(search_count, aqs::grover_oracle(search_count, 0), 1 << i), i, output_count);
-    
-    qc << Gate(aqs::inverse_fourier_transform(output_count), 0);
 
+    QCircuit oracle = grover_oracle(search_count, 0);
+    for (int i = output_count - 1; i >= 0; --i)
+        qc << ControlGate(aqs::grover_iteration(search_count, oracle, 1 << (output_count - 1 - i)), i, output_count);
+
+    qc << Gate(aqs::inverse_fourier_transform(output_count), 0);
     qc.generate_circuit();
     qs.simulate(qc);
 
-    aqs::print_global_state(qs);
+    std::vector<float> qubit_probs(output_count);
+    for (int i = 0; i < qubit_probs.size(); ++i)
+        qubit_probs[i] = qs.qubit_probability_true(i);
 
-    //std::cout << qc.representation();
-    //aqs::print_circuit_text_image(qc, qs);
+    std::vector<std::pair<uint32_t, float>> state_probs(fast_pow2(output_count), {0 , 1.0f});
+    for (int i = 0; i < state_probs.size(); ++i)
+    {
+        state_probs[i].first = i;
+        for (int j = 0; j < output_count; ++j)
+            state_probs[i].second *= (i & (1 << j)) ? qubit_probs[j] : (1.0f - qubit_probs[j]);
+    }
+
+    std::sort(state_probs.begin(), state_probs.end(), [](const std::pair<uint32_t, float>& a, const std::pair<uint32_t, float>& b){
+        return b.second < a.second;
+    });
+
+    auto likely_value = state_probs[0].first;
+    auto phase = (float)likely_value * aqs::pi * 2.f / (float)(1 << output_count);
+
+    auto search_space = 1 << search_count;
+    auto solution_count = (1 << search_count) * std::cos(phase / 2.f) * std::cos(phase / 2.f);
+    std::cout << "Likely output from phase estimation: " << likely_value << '\n';
+    std::cout << "Estimated phase: " << phase << '\n';
+    std::cout << "Estimated number of solutions: " << solution_count << '\n';
+
+    auto error = (std::sqrt(2.f * solution_count * (search_space - solution_count)) + (float)search_space / (1 << output_count)) * 2.f / (1 << output_count);
+    std::cout << "Error: " << error << "\n";
+
+    for (int i = 0; i < output_count; ++i)
+        std::cout << "i = " << i << " : " << qs.qubit_probability_true(i) << std::endl;
 
     std::cout << "\n-------------------------\n\n";
+}
+
+void temp()
+{
+    using namespace aqs;
+    QCircuit qc(4);
+
+    qc << Z{qc.qubit_count() - 1};
+
+    for (int i = 0; i < qc.qubit_count(); ++i)
+        qc << X(i);
+
+    qc << Z{qc.qubit_count() - 1};
+
+    qc << Gate(NControl_Gate(qc.qubit_count(), 0, qc.qubit_count() - 1, qc.qubit_count() - 1, Z::gate()), 0);
+
+    for (int i = 0; i < qc.qubit_count(); ++i)
+        qc << X(i);
+
+    qc.generate_circuit();
+    aqs::print_circuit_matrix(qc);
+
+    QCircuit temp(1);
+    temp << Y{0} << X{0} << Y{0} << Z{0} << X{0};
+    temp << X{0} << Z{0} << Y{0} << X{0} << Y{0};
+    temp.generate_circuit();
+    temp.reset_circuit();
+    temp << RotZ(0, aqs::pi * 2.f);
+    temp.generate_circuit();
+    aqs::print_circuit_matrix(temp);
+}
+
+void deutsch_jozsa()
+{
+    aqs::QCircuit qc(5);
+    aqs::QSimulator qs(qc.qubit_count());
+
+    qc << aqs::X{qc.qubit_count()};
+    for (int i = 0; i < qc.qubit_count() - 1; ++i)
+        qc << aqs::H(i);
+}
+
+void quantum_teleportation()
+{
+    std::cout << "---- Example: Quantum Teleportation ----\n";
+
+    aqs::QCircuit qc(3);
+    aqs::QSimulator qs(qc.qubit_count());
+
+    float angle = -atan(0.75f);
+
+    // Initial sender qubit state
+    qs.qubit(0) = aqs::QState{0.6f, {0.0f, 0.8f}};
+    qs.generate_global_state();
+
+    std::cout << "Sender qubit:\n";
+    aqs::print_state(qs.qubit(0));
+    std::cout << '\n';
+
+    // Create entangled pair
+    qc << aqs::H{1} << aqs::CX{1, 2};
+    qc << aqs::Barrier{};
+    
+    // Sender applies some operations
+    qc << aqs::CX{0, 1} << aqs::H{0};
+
+    // Sender measures their qubits
+    qc.generate_circuit();
+    qs.simulate(qc);
+
+    auto q1 = qs.measure(0);
+    auto q2 = qs.measure(1);
+
+    std::cout << "Sender first qubit measured: " << q1 << "\n";
+    std::cout << "Sender second qubit measured: " << q2 << "\n\n";
+
+    // Receiver decodes the qubit received
+    aqs::QCircuit qc0{3};
+    aqs::QSimulator qs0 = qs;
+    if (q2) qc0 << aqs::X{2};
+
+    if (q1) qc0 << aqs::Z{2};
+
+    qc0.generate_circuit();
+    qs0.simulate(qc0);
+
+    std::cout << "Profiling the qubit received:\n";
+    aqs::print_profile(qs.profile_measure(2, 1e4));
+
+
+    //This is to test if the state is the same as the sender's state
+    qc0 << aqs::RotX{2, acos(0.6f) * 2};
+    qc0.generate_circuit();
+    qs.simulate(qc0);
+
+    std::cout << "\nTesting qubit with a gate:\n";
+    aqs::print_profile(qs.profile_measure(2, 1e4));
+    std::cout << "Expected qubit measurement with gate operation: |0>\n";
+
+    std::cout << "\n-------------------------\n\n";
+}
+
+void quantum_simulation()
+{
+
 }
 
 int main(int argc, char** argv)
@@ -733,5 +866,7 @@ int main(int argc, char** argv)
     quantum_constant_addition();
     quantum_two_addition();
 
-    //quantum_counting();
+    quantum_teleportation();
+    quantum_counting();
+    //temp();
 }

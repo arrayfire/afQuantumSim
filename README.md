@@ -35,7 +35,7 @@ It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
 
 * Implement elaborated examples (see [link](https://qiskit.org/textbook/ch-applications/algs_for_apps_index.html))
 
-* Implement the adjoint operator
+* Implement the adjoint operator and unitary gate
 
 * Add a QMeasurement class to deal with profiling and measurements
 

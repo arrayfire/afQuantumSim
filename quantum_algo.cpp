@@ -39,24 +39,26 @@ namespace aqs
     QCircuit grover_search(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, std::string oracle_name)
     {
         if (oracle.qubit_count() < search_qubits)
-            throw std::invalid_argument{"Cannot use given oracle for this qubit circuit"};
+           throw std::invalid_argument{"Cannot use given oracle for this qubit circuit"};
 
         QCircuit qc(oracle.qubit_count());
         for (uint32_t i = 0; i < search_qubits; ++i)
-            qc << H(i);
+            qc << H{i};
 
         for (uint32_t i = 0; i < iterations; ++i)
         {
             qc << Barrier(false);
             qc << Gate(oracle, 0, oracle_name);
             qc << Barrier(false);
-
+            
             for (uint32_t j = 0; j < search_qubits; ++j)
-            {
-                qc << H(j);
-                qc << X(j);
-            }
+                qc << H{j};
 
+            qc << Z{search_qubits - 1};
+            for (uint32_t j = 0; j < search_qubits; ++j)
+                qc << X{j};
+            qc << Z{search_qubits - 1};
+            
             //Generate a N-Control Z gate
             qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
 
@@ -73,16 +75,19 @@ namespace aqs
     QCircuit grover_iteration(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations)
     {
         QCircuit qc(search_qubits);
-        QCircuit z(1); z << Z(0);
         for (uint32_t i = 0; i < iterations; ++i)
         {
             qc << Gate(oracle, 0);
             for (uint32_t j = 0; j < search_qubits; ++j)
-            {
-                qc << H(j);
-                qc << X(j);
-            }
-            qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, z), 0);
+                qc << H{j};
+
+            qc << Z{search_qubits - 1};
+            for (uint32_t j = 0; j < search_qubits; ++j)
+                qc << X{j};
+            qc << Z{search_qubits - 1};
+
+            qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
+
             for (uint32_t j = 0; j < search_qubits; ++j)
             {
                 qc << X(j);

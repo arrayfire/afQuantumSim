@@ -320,6 +320,16 @@ float QSimulator::state_probability(uint32_t state) const
     return val.real * val.real + val.imag * val.imag;
 }
 
+std::vector<float> QSimulator::probabilities() const
+{
+    std::vector<float> out(state_count());
+
+    af::array probs = af::real(global_state_ * af::conjg(global_state_));
+    probs.host(out.data());
+
+    return out;
+}
+
 std::vector<uint32_t> QSimulator::profile_measure_all(uint32_t rep_count) const
 {
     const auto states = state_count();

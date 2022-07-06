@@ -387,6 +387,13 @@ public:
     float state_probability(uint32_t state) const;
 
     /**
+     * @brief Returns a list of the probabilities for all the states
+     * 
+     * @return std::vector<float> 
+     */
+    std::vector<float> probabilities() const;
+
+    /**
      * @brief Returns the number of qubits of the simulator
      * 
      * @return int number of qubits

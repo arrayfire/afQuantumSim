@@ -845,7 +845,54 @@ void quantum_teleportation()
 
 void quantum_simulation()
 {
+    auto qc = aqs::QCircuit(2);
+    auto qs = aqs::QSimulator(2);
 
+    float theta, phi, lamda;
+    auto ucirc = aqs::QCircuit(1);
+    ucirc << aqs::Phase{0, lamda} << aqs::RotY{0, theta} << aqs::Phase{0, phi};
+
+
+}
+
+void quantum_hamiltonian()
+{
+    auto qc = aqs::QCircuit{4};
+    auto qs = aqs::QSimulator{4};
+
+    float timestep = 1e-3;
+
+    auto hamiltonian = aqs::QCircuit{4};
+
+    for (uint32_t i = 0; i < qc.qubit_count() - 1; ++i)
+       hamiltonian << aqs::CX{i, qc.qubit_count() - 1};
+    
+    hamiltonian << aqs::RotZ{qc.qubit_count() - 1, aqs::pi - timestep};
+
+    for (uint32_t i = 0; i < qc.qubit_count() - 1; ++i)
+       hamiltonian << aqs::CX{qc.qubit_count() - 2 - i, qc.qubit_count() - 1};
+
+    int steps = 1024;
+    for (int i = 0; i < fast_log2(steps); ++i)
+        hamiltonian << aqs::Gate(hamiltonian, 0, "Hamiltonian");
+
+    qc << aqs::Gate{hamiltonian, 0};
+
+    qc.generate_circuit();
+    //aqs::print_circuit_matrix(qc);
+    qs.simulate(qc);
+
+    aqs::print_global_state(qs);
+    aqs::print_circuit_text_image(qc, qs);
+
+    aqs::QCircuit q{2};
+    q << aqs::H{0} << aqs::CX{0, 1} << aqs::H{0};
+    q.generate_circuit();
+    aqs::QSimulator s{2};
+    s.simulate(q);
+    aqs::print_global_state(s);
+    aqs::print_circuit_matrix(q);
+    aqs::print_circuit_text_image(q, s);
 }
 
 int main(int argc, char** argv)
@@ -853,6 +900,7 @@ int main(int argc, char** argv)
     aqs::initialize(argc, argv);
     std::cout << "\n";
 
+    
     quantum_classic_xor_example();
     quantum_classic_or_example();
     quantum_2bit_adder_example();
@@ -868,5 +916,8 @@ int main(int argc, char** argv)
 
     quantum_teleportation();
     quantum_counting();
+    
+
+   //quantum_hamiltonian();
     //temp();
 }

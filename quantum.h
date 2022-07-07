@@ -270,6 +270,11 @@ class QNoise
 class QSimulator
 {
 public:
+    enum class Basis : int8_t
+    {
+        Z, Y, X
+    };
+
     /**
      * @brief Construct a new QSimulator object
      * 
@@ -407,6 +412,8 @@ public:
      */
     uint32_t state_count() const noexcept { return fast_pow2(qubits_);}
 
+    void set_basis(Basis basis);
+
     /**
      * @brief Returns a const af::array& to the internal global state stored by the simulator
      * 
@@ -419,6 +426,7 @@ private:
     af::array global_state_;
     QNoise noise_;
     uint32_t qubits_;
+    Basis basis_ = Basis::Z;
 };
 
 class QGate

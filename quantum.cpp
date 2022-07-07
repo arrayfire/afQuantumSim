@@ -199,7 +199,8 @@ void QCircuit::generate_circuit()
 }
 
 QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const QNoise& noise_generator)
-    :states_(qubit_count, initial_state), global_state_{fast_pow2(qubit_count), c32}, noise_{noise_generator}, qubits_{qubit_count}
+    :states_(qubit_count, initial_state), global_state_{fast_pow2(qubit_count), c32}, noise_{noise_generator}, qubits_{qubit_count},
+     basis_{Basis::Z}
 {
     generate_global_state();
 }
@@ -328,6 +329,61 @@ std::vector<float> QSimulator::probabilities() const
     probs.host(out.data());
 
     return out;
+}
+
+void QSimulator::set_basis(Basis basis)
+{
+    if (basis != basis_)
+    {
+        static af::cfloat z_to_x_vals[] = {
+            { 0.70710678118f, 0.f } , { 0.70710678118f , 0.f },
+            { 0.70710678118f, 0.f } , {-0.70710678118f , 0.f }
+        };
+        static af::cfloat z_to_y_vals[] = {
+            { 0.70710678118f, 0.f } , { 0.70710678118f , 0.f },
+            { 0.f, -0.70710678118f } , { 0.f , 0.70710678118f }
+        };
+
+        static af::array z_to_x = af::array(2, 2, z_to_x_vals).T();
+        static af::array z_to_y = af::array(2, 2, z_to_y_vals).T();
+        static af::array x_to_z = af::inverse(z_to_x);
+        static af::array y_to_z = af::inverse(z_to_y);
+
+        af::array matrix;
+        switch (basis_)
+        {
+        case Basis::Z:
+            matrix = af::identity(2, 2, c32);
+            break;
+        case Basis::Y:
+            matrix = y_to_z;
+        case Basis::X:
+            matrix = x_to_z;
+            break;
+        }
+
+        auto gen_tensor_matrix = [qubits = qubits_](const af::array& matrix){
+            af::array out = matrix;
+            for (uint32_t i = 0; i < qubits - 1; ++i)
+                out = tensor_product(matrix, out);
+            return out;
+        };
+
+        switch (basis)
+        {
+        case Basis::Z:
+            break;
+        case Basis::Y:
+            matrix = af::matmul(z_to_y, matrix);
+            break;
+        case Basis::X:
+            matrix = af::matmul(z_to_x, matrix);
+            break;
+        }
+
+        global_state_ = af::matmul(gen_tensor_matrix(matrix), global_state_);
+        basis_ = basis;
+    }
 }
 
 std::vector<uint32_t> QSimulator::profile_measure_all(uint32_t rep_count) const

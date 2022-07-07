@@ -851,8 +851,6 @@ void quantum_simulation()
     float theta, phi, lamda;
     auto ucirc = aqs::QCircuit(1);
     ucirc << aqs::Phase{0, lamda} << aqs::RotY{0, theta} << aqs::Phase{0, phi};
-
-
 }
 
 void quantum_hamiltonian()
@@ -895,6 +893,20 @@ void quantum_hamiltonian()
     aqs::print_circuit_text_image(q, s);
 }
 
+void quantum_change_of_basis()
+{
+    aqs::QCircuit qc(2);
+    qc  << aqs::X{0} << aqs::H{0} << aqs::H{1};
+    qc.generate_circuit();
+    aqs::QSimulator qs(2);
+    qs.simulate(qc);
+    aqs::print_global_state(qs);
+    qs.set_basis(aqs::QSimulator::Basis::X);
+    aqs::print_global_state(qs);
+    qs.set_basis(aqs::QSimulator::Basis::Z);
+    aqs::print_global_state(qs);
+}
+
 int main(int argc, char** argv)
 {
     aqs::initialize(argc, argv);
@@ -916,8 +928,9 @@ int main(int argc, char** argv)
 
     quantum_teleportation();
     quantum_counting();
-    
 
+
+    quantum_change_of_basis();
    //quantum_hamiltonian();
     //temp();
 }

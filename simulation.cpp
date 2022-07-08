@@ -187,21 +187,40 @@ aqs::QCircuit linear_vqe(uint32_t qubits, uint32_t depth, const std::vector<floa
     return qc;
 }
 
-aqs::QCircuit hamiltonian(uint32_t qubits)
+aqs::QCircuit full_vqe(uint32_t qubits, uint32_t depth, const std::vector<float>& values)
 {
+    if (qubits == 0)
+        throw std::invalid_argument{"Number of qubits must be greater than zero"};
+    if (depth == 0)
+        throw std::invalid_argument{"Depth of circuit must be greater than zero"};
+    if (qubits * depth * 2 != values.size())
+        throw std::invalid_argument{"Parameter count passed is not the expected received"};
+
     aqs::QCircuit qc{qubits};
 
     for (uint32_t i = 0; i < qubits; ++i)
-        qc << aqs::H{i};
+        qc << aqs::RotY{i, values[i]};
+    for (uint32_t i = 0; i < qubits; ++i)
+        qc << aqs::RotZ{i, values[qubits + i]};
+
+    for (uint32_t j = 0; j < depth - 1; ++j)
+    {
+        for (uint32_t i = 0; i < qubits - 1; ++i)
+        {
+            for (uint32_t k = i + 1; k < qubits; ++k)
+                qc << aqs::CX{i, k};
+        }
+
+        for (uint32_t i = 0; i < qubits; ++i)
+            qc << aqs::RotY{i, values[qubits * (j + 2) + i]};
+        for (uint32_t i = 0; i < qubits; ++i)
+            qc << aqs::RotZ{i, values[qubits * (j + 3) + i]};
+    }
 
     qc.generate_circuit();
+
     return qc;
 }
-
-struct Data
-{
-    uint32_t qubits;
-};
 
 std::vector<float> get_coefficients(uint32_t qubits, const af::array& hamiltonian)
 {
@@ -287,7 +306,7 @@ std::vector<std::pair<std::string, af::cfloat>> decompose(uint32_t qubits, const
         }
 
         auto coeff = hs_product(temp, hamiltonian); 
-        if (coeff != af::cfloat{0.f} || coeff != af::cfloat{-0.f})
+        if ((coeff != af::cfloat{0.f} || coeff != af::cfloat{-0.f}) && (coeff.real * coeff.real + coeff.imag * coeff.imag > 1e-8))
             coeffs.push_back({str, coeff * (1.f / fast_pow2(qubits))});
     }
 
@@ -340,8 +359,15 @@ void add_matrix(aqs::QCircuit& qc, const std::string& shape, float coeff)
         throw std::invalid_argument{"Qubit count and shape length must match"};
 
     if (shape.find_first_of("xyz") == std::string::npos)
+    {
+        qc << aqs::Barrier{false};
+        for (uint32_t i = 0; i < qc.qubit_count(); ++i)
+            qc << aqs::RotZ{i, -coeff} << aqs::Phase{i, coeff};
+        qc << aqs::Barrier{false};
         return;
+    }
 
+    qc << aqs::Barrier{false};
     uint32_t previous = -1;
     for (uint32_t i = 0; i < qc.qubit_count(); ++i)
     {
@@ -366,17 +392,43 @@ void add_matrix(aqs::QCircuit& qc, const std::string& shape, float coeff)
         previous = i;   
     }
 
-    qc << aqs::RotZ{previous, coeff};
+    qc << aqs::RotZ{previous, -coeff * 2.f};
 
-    //for (auto it = shape.rbegin() + (shape.length() - 1 - previous); it !)
-
-    auto current = shape.find_last_of("xyz", previous - 1);
-    while (current != std::string::npos && current != previous)
+    for (uint32_t i = previous; i > 0; --i)
     {
-        qc << aqs::CX(current, previous);
-        previous = current;
-        current = shape.find_last_of("xyz", previous);
+        const auto& c = shape[i - 1];
+        if (c == 'i') continue;
+
+        if (i - 1 != previous)
+            qc << aqs::CX{i - 1, previous};
+
+        switch (shape[previous])
+        {
+        case 'x':
+            qc << aqs::H{previous};
+            break;
+        case 'y':
+            qc << aqs::Y{previous} << aqs::RotX{previous, -aqs::pi / 2.f};
+            break;
+        case 'z':
+            break;
+        }
+
+        previous = i - 1;
     }
+
+    switch (shape[previous])
+    {
+    case 'x':
+        qc << aqs::H{previous};
+        break;
+    case 'y':
+        qc << aqs::Y{previous} << aqs::RotX{previous, -aqs::pi / 2.f};
+        break;
+    case 'z':
+        break;
+    }
+    qc << aqs::Barrier{false};
 }
 
 aqs::QCircuit hamiltonian_circuit(const af::array& hamiltonian, uint32_t steps)
@@ -403,11 +455,14 @@ aqs::QCircuit hamiltonian_circuit(const af::array& hamiltonian, uint32_t steps)
 
 void vqe_example()
 {
+    std::cout << "***** VQE example for a Hamiltonian *****\n\n";
     const uint32_t qubits = 2;
     const uint32_t depth = qubits;
 
     af::cfloat hamil_values[] = {
-        {1.f},{2.f},{3.f},{4.f}
+        //{0.25f},{0.5f},{0.75f},{1.f}
+        {0.f},{0.f},{0.f},{-1.f}
+        //{1.f},{2.f},{3.f},{4.f}
     };
 
     struct Data_t {
@@ -416,11 +471,27 @@ void vqe_example()
 
     af::array hamil_matrix = af::diag(af::array(4, hamil_values), 0, false);
 
-    auto hamil_circuit = hamiltonian_circuit(hamil_matrix, 1);
-    Data_t data{hamil_circuit};
-    //data.hamiltonian = hamil_circuit;
+    std::cout << "Hamiltonian to find minimum eigenvalue of:\n";
+    af_print(hamil_matrix);
 
-    std::vector<double> state_params(qubits * depth * 2, 1.);
+    int scale = 10;
+    auto hamil_circuit = hamiltonian_circuit(hamil_matrix, scale);
+    std::cout << "Pauli representation of the hamiltonian: " << decompose(2, hamil_matrix) << "\n";
+
+    std::cout << "Hamiltonian evolution circuit matrix:\n";
+    aqs::print_circuit_matrix(hamil_circuit);
+    
+    std::cout << "\nHamiltonian evolution circuit representation:\n";    
+    aqs::print_circuit_text_image(hamil_circuit, aqs::QSimulator{2});
+
+    Data_t data{hamil_circuit};
+
+    std::random_device dv{};
+    std::mt19937 rd{dv()};
+    std::uniform_real_distribution<double> dist(-af::Pi, af::Pi);
+    std::vector<double> state_params(qubits * depth * 2);
+    for (auto& val : state_params)
+        val = dist(rd);
 
     auto cost_function = [](const std::vector<double>& x, std::vector<double>& gradient, void* data) {
         static std::vector<float> buff(x.size());
@@ -450,22 +521,24 @@ void vqe_example()
         af::cfloat expectation = af::matmul(bra_state, ket_state)(0).scalar<af::cfloat>();
 
         double angle = std::acos(expectation.real);
-        //if (expectation.imag < 0.f)
-            //angle = -angle;
+
+        if (expectation.imag < 0.f)
+            angle = -angle;
 
         return angle;
     };
 
     nlopt::opt opt(nlopt::LN_COBYLA, state_params.size());
     opt.set_min_objective(cost_function, &data);
-    opt.set_xtol_rel(1e-3);
+    //opt.set_xtol_rel(1e-3);
     opt.set_ftol_rel(1e-3);
-    opt.set_maxeval(10000);
+    opt.set_maxeval(100);
     opt.set_maxtime(20);
 
     double result = 0.0;
     std::cout << state_params;
     opt.optimize(state_params, result);
+    result *= scale;
 
     std::vector<float> fparams(state_params.size());
     for (std::size_t i = 0; i < state_params.size(); ++i)
@@ -475,11 +548,149 @@ void vqe_example()
     aqs::QSimulator qs(qubits);
     qs.simulate(state_circuit);
 
-    std::cout << result << "\n";
-    std::cout << state_params;
+    std::cout << "\nMinimum eigenvalue: " << result << "\n";
+    std::cout << "\nAngle parameters" << state_params << "\n";
+    std::cout << "\nEigenstate:\n";
     aqs::print_global_state(qs);
 
     qs.simulate(hamil_circuit);
+    std::cout << "Resulting state:\n";
+    aqs::print_global_state(qs);
+
+    std::cout << "\n--------------------\n\n";
+}
+
+std::pair<float, std::vector<float>> variational_quantum_eigensolver(const af::array& matrix, uint32_t scale)
+{
+    auto dim = matrix.dims();
+    if (dim[0] != dim[1] && fast_pow2(fast_log2(dim[0])) != dim[0] && dim[3] != 1 && dim[4] != 1)
+        throw std::invalid_argument{"Cannot solve given matrix"};
+
+    uint32_t qubits = fast_log2(dim[0]);
+    uint32_t depth = qubits;
+    uint32_t param_count = qubits * depth * 2;
+
+    struct Data_t
+    {
+        std::vector<float> param_buff;
+        aqs::QCircuit hamiltonian;
+    };
+
+    auto params = std::vector<double>(param_count);
+    std::random_device dv{};
+    std::mt19937 rd{dv()};
+    std::uniform_real_distribution<double> dist(-af::Pi, af::Pi);
+    for (auto& val : params)
+        val = dist(rd);
+
+    auto param_buff = std::vector<float>(param_count);
+    auto hamil_circuit = hamiltonian_circuit(matrix, scale);
+    Data_t data{param_buff, hamil_circuit};
+
+    auto cost_function = [](const std::vector<double>& x, std::vector<double>& gradient, void* void_data)
+    {
+        Data_t& data = *static_cast<Data_t*>(void_data);
+        auto& param_buff = data.param_buff;  
+        auto& hamiltonian = data.hamiltonian;
+        uint32_t qubits = hamiltonian.qubit_count();
+
+        aqs::QCircuit qc{qubits};
+        aqs::QSimulator qs{qubits};
+
+        for (std::size_t i = 0; i < param_buff.size(); ++i)
+            param_buff[i] = static_cast<float>(x[i]);
+
+        qc << aqs::Gate{full_vqe(qubits, qubits, param_buff), 0};
+        qc.generate_circuit();
+        qs.generate_global_state();
+        qs.simulate(qc);
+
+        auto bra_state = af::transpose(qs.global_state(), true);
+
+        qc << aqs::Gate{hamiltonian, 0};
+        qc.generate_circuit();
+        qs.generate_global_state();
+        qs.simulate(qc);
+
+        auto ket_state = qs.global_state();
+        af::cfloat expectation = af::matmul(bra_state, ket_state)(0).scalar<af::cfloat>();
+
+        double angle = std::acos(expectation.real);
+        if (expectation.imag < 0.f)
+            angle = -angle;
+
+        return angle;
+    };
+
+    nlopt::opt opt(nlopt::LN_COBYLA, params.size());
+    opt.set_min_objective(cost_function, &data);
+    //opt.set_xtol_rel(1e-5);
+    //opt.set_ftol_rel(1e-5);
+    opt.set_maxeval(1000);
+    opt.set_maxtime(20);
+
+    double result = 0.0;
+    opt.optimize(params, result);
+    result *= scale;
+
+    for (std::size_t i = 0; i < params.size(); ++i)
+        param_buff[i] = static_cast<float>(params[i]);
+
+    return { result , param_buff };
+}
+
+void hydrogen_molecule()
+{
+    std::cout << "***** Hydrogen molecule ground energy ***** \n\n";
+
+    std::vector<std::pair<std::string, af::cfloat>> hamiltonian_decomposition = {
+        {"iizi", {-0.24274501250395486f}},
+        {"iiiz", {-0.24274501250395486f}},
+        {"iiii", {-0.04207255204090424f}},
+        {"ziii", {0.17771358235540047f}},
+        {"izii", {0.1777135823554005f}},
+        {"zizi", {0.12293330446049033f}},
+        {"iziz", {0.12293330446049033f}},
+        {"ziiz", {0.16768338851167847f}},
+        {"izzi", {0.16768338851167847f}},
+        {"zzii", {0.17059759275420894f}},
+        {"iizz", {0.1762766138632343}},
+        {"yyxx", {-0.044750084051188126f}},
+        {"xxyy", {-0.044750084051188126f}},
+        {"yxxy", {0.044750084051188126f}},
+        {"xyyx", {0.044750084051188126f}}
+    };
+
+    const uint32_t qubits = 4;
+    const uint32_t depth = qubits;
+
+    const int scale = 10;
+    af::array hamiltonian_matrix = compose(4, hamiltonian_decomposition);
+    std::cout << "Hydrogen molecule decomposed hamiltonian:\n" << decompose(qubits, hamiltonian_matrix);
+
+    auto pair = variational_quantum_eigensolver(hamiltonian_matrix, scale);
+    auto result = pair.first;
+    auto& params = pair.second;
+
+    auto circuit = hamiltonian_circuit(hamiltonian_matrix, scale);
+    //aqs::print_circuit_text_image(circuit, aqs::QSimulator{qubits});
+
+    std::vector<float> fparams(params.size());
+    for (std::size_t i = 0; i < params.size(); ++i)
+        fparams[i] = static_cast<float>(params[i]);
+
+    auto state_circuit = full_vqe(qubits, qubits, params);
+    aqs::QSimulator qs(qubits);
+    qs.simulate(state_circuit);
+
+    std::cout << "\nMininum eigenvalue: " << result << "\n";
+    std::cout << "\nParameters:\n";
+    std::cout << params << "\n";
+    std::cout << "Eigenstate:\n";
+    aqs::print_global_state(qs);
+
+    std::cout << "\nResulting state:\n";
+    qs.simulate(circuit);
     aqs::print_global_state(qs);
 
     std::cout << "--------------------\n\n";
@@ -491,59 +702,16 @@ int main(int argc, char** argv)
     begin();
     optimize();
 
-    vqe_example();
 
-    uint32_t qubits = 4;
-    uint32_t param_count = qubits * qubits * 2;
-    auto h = hamiltonian(qubits);
-
-    Data data;
-    data.qubits = qubits;
-
-    auto min_expectation = [](const std::vector<double>& x, std::vector<double>& gradient, void* data) {
-        static std::vector<float> temp(x.size());
-        const Data& d = *static_cast<Data*>(data);
-        for (std::size_t i = 0; i < x.size(); ++i)
-            temp[i] = static_cast<float>(x[i]);
-
-        aqs::QCircuit qc{d.qubits};
-        aqs::QSimulator qs(d.qubits);
-        qc << aqs::Gate{linear_vqe(d.qubits, d.qubits, temp), 0};
-        qc.generate_circuit();
-        qs.generate_global_state();
-        qs.simulate(qc);
-
-        auto bra_state = af::transpose(qs.global_state(), true);
-
-        qc << aqs::Gate{hamiltonian(d.qubits), 0};
-        qc.generate_circuit();
-        qs.generate_global_state();
-        qs.simulate(qc);
-
-        auto ket_state = qs.global_state();
-
-        double expectation = static_cast<double>(af::real(af::matmul(bra_state, ket_state))(0).scalar<float>());
-
-        return expectation;
-    };
+    const uint32_t qubits = 4;
+    const uint32_t param_count = qubits * qubits * 2;
 
     std::vector<double> params(param_count);
     for (auto& val : params)
         val = dist(rd);
 
-    nlopt::opt opt{nlopt::LN_COBYLA, param_count};
-    opt.set_min_objective(min_expectation, &data);
-    opt.set_xtol_rel(1e-3);
-    opt.set_ftol_rel(1e-3);
-    opt.set_maxeval(10000);
-    opt.set_maxtime(20);
-    //opt.set_initial_step(1e-2);
-    //opt.set_lower_bounds(-af::Pi);
-    //opt.set_upper_bounds(af::Pi);
-
     double result = 0.0;
     std::cout << params;
-    //opt.optimize(params, result);
 
     std::vector<float> fparams(params.size());
     for (std::size_t i = 0; i < params.size(); ++i)
@@ -557,37 +725,6 @@ int main(int argc, char** argv)
     std::cout << params;
     aqs::print_global_state(qs);
 
-    state_circuit << aqs::Gate(hamiltonian(qubits), 0);
-    state_circuit.generate_circuit();
-    qs.generate_global_state();
-    qs.simulate(state_circuit);
-    aqs::print_global_state(qs);
-
-    af::cfloat mat_vals[] = {
-        //{ 0.f } , {0.f} , {0.f} , {1.f}, { 0.f},{0.f,1.f},{0.f,0.f},{0.f}
-        {1.f},{1.f},{1.f},{1.f}, {0.f,1.f},{0.f, 1.f},{0.f, 1.f},{0.f,1.f}
-    };
-    af::cfloat other[] = {
-        {0.f}, {0.f}, {0.f}, {0.f, -1.f},
-        {0.f}, {0.f}, {0.f,1.f}, {0.f},
-        {0.f}, {0.f,-1.f}, {0.f}, {0.f},
-        {0.f,1.f}, {0.f}, {0.f}, {0.f},
-    };
-
-    af::array mat = af::diag(af::array(8, mat_vals), 0, false);
-    af_print(mat);
-    //std::cout << get_coefficients(2, mat);
-    auto d = decompose(3, mat);
-    std::cout << d << std::endl;
-    af_print(compose(3, d));
-
-    af::array othermat = af::array(4, 4, other).T() * 2.f;
-    af_print(mat);
-    auto otherd = decompose(2, othermat);
-    std::cout << otherd << std::endl;
-    af_print(compose(2, otherd));
-
-
     af::cfloat ham_mat[] = {
         {0.f}, {0.f}, {0.f}, {1.f}
     };
@@ -598,13 +735,25 @@ int main(int argc, char** argv)
     hamil_circuit.generate_circuit();
     aqs::print_circuit_text_image(hamil_circuit, aqs::QSimulator{2});
     aqs::print_circuit_matrix(hamil_circuit);
-    
-    aqs::QCircuit tempqc(2);
-    for (int i = 0; i < 10000; ++i)
-        tempqc << aqs::Gate(hamil_circuit, 0);
 
-    tempqc.generate_circuit();
-    aqs::print_circuit_matrix(tempqc);
+    vqe_example();
+    hydrogen_molecule();
+
+    af::cfloat mvals[] = {
+        {}, {}, {}, {-1.f},
+        {}, {}, {1.f}, {},
+        {}, {1.f}, {}, {},
+        {-1.f}, {}, {}, {}
+    };
+    af::array m = af::array(4, 4, mvals).T();
+
+    std::cout << "Hamiltonian:\n";
+    af_print(m);
+    std::cout << "\n" << decompose(2, m);
+    aqs::print_circuit_matrix(hamiltonian_circuit(m, 1));
+    aqs::print_circuit_text_image(hamiltonian_circuit(m, 1), aqs::QSimulator{2});
+    auto pair = variational_quantum_eigensolver(m, 1);
+    std::cout << "\nMinimum eigenvalue: " << pair.first << "\n";
 
     return 0;
 }

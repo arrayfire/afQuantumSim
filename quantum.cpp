@@ -495,8 +495,8 @@ QCircuit& Y::operator()(QCircuit& qc) const
     auto col_indices = iota ^ mask;
     auto row_indices = af::iota(states + 1, 1, s32);
 
-    auto values = af::constant(af::cfloat{ 0.f , -1.f }, states);
-    af::replace(values, (iota & (1 << target_qubit)).as(b8), af::constant(af::cfloat{ 1.f , 0.f }, states));
+    auto values = af::constant(af::cfloat{ 0.f , 1.f }, states);
+    af::replace(values, (iota & (1 << (qubits - target_qubit - 1))).as(b8), af::constant(af::cfloat{ 0.f , -1.f }, states));
 
     auto matrix_y = af::sparse(states, states, values, row_indices, col_indices);
 

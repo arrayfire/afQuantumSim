@@ -81,7 +81,7 @@ std::pair<int64_t, int64_t> approximate_fraction(double f, int64_t md)
         f = -f;
     }
  
-	while (f != floor(f))
+	while (f != std::floor(f))
     {
         n <<= 1;
         f *= 2;

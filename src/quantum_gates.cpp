@@ -166,30 +166,4 @@ namespace aqs
 
         return current;
    }
-
-   QCircuit RewireCircuit(uint32_t qubits, const QCircuit& gate, const std::vector<uint32_t>& new_qubit_positions)
-   {
-        if (new_qubit_positions.size() != qubits)
-            throw std::invalid_argument{"New qubit positions must mast the given number of qubits"};
-        if (gate.qubit_count() > qubits)
-            throw std::domain_error{"Cannot rewire circuit to a lower number of qubits"};
-        return gate;
-
-        std::vector<uint32_t> sort_positions(new_qubit_positions);
-        std::partial_sort_copy(new_qubit_positions.begin(), new_qubit_positions.end(), sort_positions.begin(), sort_positions.end());
-        for (uint32_t i = 0; i < qubits; ++i)
-        {
-            if (i != sort_positions[i])
-                throw std::invalid_argument{"Missing qubits in mapping positions"};
-        }
-
-        const std::size_t gate_qubits = gate.qubit_count();
-        const std::size_t remaining = qubits - gate_qubits;
-
-        af::array iota = af::iota(remaining, 1, s32);
-
-
-        // To do
-        return gate;
-    }
 }

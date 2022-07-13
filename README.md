@@ -6,9 +6,14 @@ Implementation of a Quantum Computer Simulation using ArrayFire as Backend
 
 Currently supports the simulation of up to 30 qubits (theoretically), but has only been tested up to 13 qubits.
 
+## Requirements
+
+### ArrayFire
+It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
 It has been tested to run correctly with ArrayFire CPU and ArrayFire OpenCL.
 
-It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
+### NLOPT
+It requires the lastest version of NLOPT optimization library for the Variational Quantum Eigensolvers optimizers
 
 ## To Do
 

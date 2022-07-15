@@ -287,6 +287,17 @@ public:
                         const QNoise& noise_generator = QNoise{});
 
     /**
+     * @brief Construct a new QSimulator object
+     * 
+     * @param qubit_count number of qubits of the simulator
+     * @param global_state the global state initialized to
+     * @param noise_generator the noise generator to be used
+     */
+    explicit QSimulator(uint32_t qubit_count,
+                        const af::array& global_state,
+                        const QNoise& noise_generator = QNoise{});
+
+    /**
      * @brief Calculates the global state vector from all the individual states of the qubits
      * 
      */

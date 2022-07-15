@@ -1,18 +1,17 @@
 ArrayFire Quantum Simulator
 =============
 
-## Description
 Implementation of a Quantum Computer Simulation using ArrayFire as Backend
 
 Currently supports the simulation of up to 30 qubits (theoretically), but has only been tested up to 13 qubits.
 
 ## Requirements
 
-### ArrayFire
+### [ArrayFire](https://github.com/arrayfire/arrayfire)
 It requires at least C++14 and ArrayFire 3.8 is sufficient to run.
 It has been tested to run correctly with ArrayFire CPU and ArrayFire OpenCL.
 
-### NLOPT
+### [NLOPT](https://github.com/stevengj/nlopt)
 It requires the lastest version of NLOPT optimization library for the Variational Quantum Eigensolvers optimizers
 
 ## To Do
@@ -28,26 +27,30 @@ It requires the lastest version of NLOPT optimization library for the Variationa
 
 * Implement rotation operations: `RotX`, `RotY`, `RotZ` and its controlled equivalents
 
-### WIP
 * Allow gates to add control qubits at any location
 
 * Implement tests for new features
 
+* Project restructuring
+
+### WIP
+
+* Implement elaborated examples (see [link](https://qiskit.org/textbook/ch-applications/algs_for_apps_index.html))
+
 * Implement a rewire circuit feature
 
 ### High Priority
-* Allow for caching of the generated fundamental gates
-
-* Implement elaborated examples (see [link](https://qiskit.org/textbook/ch-applications/algs_for_apps_index.html))
 
 * Implement the adjoint operator and unitary gate
 
 * Add a QMeasurement class to deal with profiling and measurements
 
 ### Medium Priority
+* Allow for caching of the generated fundamental gates
+
 * Restructure the code to support more qubits and test
 
-* Implement an optimizer that, using the deferral of simulation, finds optimizations of the circuit created (removal of gates that cancel each other, combine the addition of the same gate multiple times in a pre-generated matrix)
+* Implement an optimizer (removal of gates that cancel each other, combine the addition of the same gate multiple times in a pre-generated matrix)
 
 ### Low Priority
 * Implement a way to regenerate the state of individual qubits from the global state

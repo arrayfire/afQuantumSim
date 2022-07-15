@@ -173,6 +173,22 @@ QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const 
     generate_global_state();
 }
 
+QSimulator::QSimulator(uint32_t qubit_count, const af::array& global_state, const QNoise& noise_generator)
+    :states_(qubit_count), noise_{noise_generator}, qubits_{qubit_count}, basis_{Basis::Z}
+{
+    if (global_state.dims()[0] != fast_pow2(qubit_count) ||
+        global_state.dims()[1] != 1 ||
+        global_state.dims()[2] != 1 ||
+        global_state.dims()[3] != 1)
+        throw std::invalid_argument{"Invalid initial global state shape"};
+
+    auto norm = af::norm(global_state);
+
+    if (norm == 0.) throw std::invalid_argument{"Cannot have a null global state"};
+
+    global_state_ = global_state / af::norm(global_state);
+}
+
 void QSimulator::generate_global_state()
 {
     std::vector<af::cfloat> temp(qubit_count() * 2);

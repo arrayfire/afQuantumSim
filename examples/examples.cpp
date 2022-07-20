@@ -37,16 +37,16 @@ void quantum_classic_xor_example()
     qs.qubit(0) = aqs::QState::zero();
     qs.qubit(1) = aqs::QState::zero();
     qs.qubit(2) = aqs::QState::one();
-    qs.generate_global_state();
+    qs.generate_statevector();
 
     std::cout << "XOR when q[0] = 0\nInitial State:\n";
-    print_global_state(qs);
+    print_statevector(qs);
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
 
     std::cout << "Output State:\n";
-    print_global_state(qs);
+    print_statevector(qs);
     std::cout << "Expected: 001 -> 001\n";
     std::cout << "Measured: 001 -> " << binary_string(qs.peek_measure_all(), 3) << "\n"; 
     //qs.profile_measure_all(reps);
@@ -55,16 +55,16 @@ void quantum_classic_xor_example()
     qs.qubit(0) = aqs::QState::one();
     qs.qubit(1) = aqs::QState::zero();
     qs.qubit(2) = aqs::QState::one();
-    qs.generate_global_state();
+    qs.generate_statevector();
 
     std::cout << "\n*******\n\n";
     std::cout << "XOR when q[0] = 1\nInitial State:\n";
-    print_global_state(qs);
+    print_statevector(qs);
 
     qs.simulate(qc);
 
     std::cout << "Output State:\n";
-    print_global_state(qs);
+    print_statevector(qs);
     std::cout << "Expected: 101 -> 110\n";
     std::cout << "Measured: 101 -> " << binary_string(qs.peek_measure_all(), 3) << "\n";
     //qs.profile_measure_all(reps);
@@ -93,16 +93,16 @@ void quantum_classic_or_example()
     qs.qubit(2) = aqs::QState::one();
     qs.qubit(3) = aqs::QState::zero();
     qs.qubit(4) = aqs::QState::zero();
-    qs.generate_global_state();
+    qs.generate_statevector();
     std::cout << "OR when q[0] = 0 , q[1] = 0 , q[2] = 1\n";
     //std::cout << "Initial State:\n";
-    //print_global_state(qc);
+    //print_statevector(qc);
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
 
     //std::cout << "Output State:\n";
-    //print_global_state(qs);
+    //print_statevector(qs);
     std::cout << "Expected: 00100 -> 00101\n";
     std::cout << "Measured: 00100 -> " << binary_string(qs.peek_measure_all(), 5) << "\n"; 
     //qc.profile_measure_all(reps);
@@ -115,16 +115,16 @@ void quantum_classic_or_example()
     qs.qubit(2) = aqs::QState::one();
     qs.qubit(3) = aqs::QState::zero();
     qs.qubit(4) = aqs::QState::zero();
-    qs.generate_global_state();
+    qs.generate_statevector();
     std::cout << "OR when q[0] = 1 , q[1] = 0 , q[2] = 1\n";
     //std::cout << "Initial State:\n";
-    //print_global_state(qc);
+    //print_statevector(qc);
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
 
     //std::cout << "Output State:\n";
-    //print_global_state(qs);
+    //print_statevector(qs);
     std::cout << "Expected: 10100 -> 10111\n";
     std::cout << "Measured: 10100 -> " << binary_string(qs.peek_measure_all(), 5) << "\n";
     //qs.profile_measure_all(reps);
@@ -167,10 +167,10 @@ void quantum_2bit_adder_example()
         qs.qubit(2) = val2 & 1 ? aqs::QState::one() : aqs::QState::zero();
         qs.qubit(3) = val2 & 2 ? aqs::QState::one() : aqs::QState::zero();
 
-        qs.generate_global_state();
+        qs.generate_statevector();
         std::cout << "Input: " << binary_string(qs.peek_measure_all(), 7) << '\n';
 
-        qc.generate_circuit();
+        qc.compile();
         qs.simulate(qc);
         auto result = qs.peek_measure_all();
         std::string r = binary_string(result, 7);
@@ -204,45 +204,45 @@ void quantum_entanglement_example()
     // Entagle 2 qubits
     qc << H(0);
     qc << CNot(0, 1);
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
     std::cout << "State of entangled q[0] and q[1]:\n";
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
     //aqs::print_profile(qs.profile_measure_all(reps));
 
     std::cout << "\n*** Entanglement of 3 qubits ***\n\n";
     //Entangle 3 qubits
-    qc.generate_circuit();
-    qs.generate_global_state();
+    qc.compile();
+    qs.generate_statevector();
     qc << CNot(0, 2);
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
     std::cout << "State of entangled q[0], q[1], and q[2]:\n";
-    aqs::print_global_state(qs);
-    //aqs::print_global_state(qs.profile_measure_all(reps));
+    aqs::print_statevector(qs);
+    //aqs::print_statevector(qs.profile_measure_all(reps));
 
     std::cout << "\n*** Entanglement of 4 qubits ***\n\n";
     //Entangle 4 qubits
-    qs.generate_global_state();
+    qs.generate_statevector();
     qc << CNot(0, 3);
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
     std::cout << "State of entangled q[0], q[1], q[2], and q[3]:\n";
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
     //qs.profile_measure_all(reps);
 
     std::cout << "\n*** Entanglement of 2 pair of qubits ***\n\n";
     //Entangle 2 pair of qubits
-    qs.generate_global_state();
-    qc.reset_circuit();
+    qs.generate_statevector();
+    qc.clear();
     qc << H(0);
     qc << H(2);
     qc << CNot(0, 1);
     qc << CNot(2, 3);
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
     std::cout << "State of entangled (q[0], q[1]), and (q[2], q[3]):\n";
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
     //qs.profile_measure_all(reps);
 
     std::cout << "-------------------------\n";
@@ -258,30 +258,30 @@ void quantum_superposition_example()
     aqs::QCircuit qc(4);
 
     // All qubits in definite |0> state
-    qs.generate_global_state();
-    std::cout << "Global State with all qubits in |0> state:\n";
-    print_global_state(qs);
+    qs.generate_statevector();
+    std::cout << "Statevector with all qubits in |0> state:\n";
+    print_statevector(qs);
     //aqs::print_profile(qs.profile_measure_all(reps));
 
     // Put qubits 0 and 2 into superposition
     qc << H(0);
     qc << H(2);
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
 
-    std::cout << "Global State with q[0] and q[2] in superposition using Hadamard:\n";
-    print_global_state(qs);
+    std::cout << "Statevector with q[0] and q[2] in superposition using Hadamard:\n";
+    print_statevector(qs);
     //print_profile_measure(qs.profile_measure_all(reps));
 
     // Put qubit 1 into a superposed state and qubit 3 into definite |1> state
     qs.qubit(1) = aqs::QState{{0.0f, 0.6f} , { 0.8f, 0.0f }};
     qs.qubit(3) = aqs::QState::one();
-    qs.generate_global_state();
-    qc.generate_circuit();
+    qs.generate_statevector();
+    qc.compile();
     qs.simulate(qc);
 
-    std::cout << "Global State with q[0] and q[2] in superposition using Hadamard, q[1] = 0.6i|0> + 0.8|1>, and q[3] = |1>:\n";
-    print_global_state(qs);
+    std::cout << "Statevector with q[0] and q[2] in superposition using Hadamard, q[1] = 0.6i|0> + 0.8|1>, and q[3] = |1>:\n";
+    print_statevector(qs);
     //print_profile(qs.profile_measure_all(reps));
 
     std::cout << "-------------------------\n";
@@ -306,13 +306,13 @@ void quantum_grover_example()
     std::cout << grover_search_gate.representation() << std::endl;
     qc << Gate(grover_search_gate, 0);
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
 
     std::cout << "Searching for <" << marked_solution << "> in " << search_space << " numbers using " << iterations
               << " iterations of Grover's Algorithm\n\n";
     //std::cout << "Grover Output State:\n";
-    //print_global_state(qs);
+    //print_statevector(qs);
 
     int reps = 1e4;
     std::cout << "Profile of " << reps << " measurements:\n";
@@ -351,27 +351,27 @@ void quantum_fourier_transform_example()
     int value = 3;
     for (int i = 0; i < qubits; ++i)
         qs.qubit(i) = value & (1 << i) ? aqs::QState::one() : aqs::QState::zero();
-    qs.generate_global_state();
+    qs.generate_statevector();
 
     std::cout << "Input value: " << value << "\nInput State (Computational Basis):\n";
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
 
     aqs::QCircuit fourier_gate = aqs::fourier_transform(qubits);
     qc << Gate(fourier_gate, 0);
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
     std::cout << "Output State (Fourier Basis):\n";
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
 
     aqs::QCircuit inverse_fourier_gate = aqs::inverse_fourier_transform(qubits);
-    qc.reset_circuit();
+    qc.clear();
     qc << Gate(inverse_fourier_gate, 0);
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
     std::cout << "Output State after Inverse Fourier (Computational Basis):\n";
-    print_global_state(qs);
+    print_statevector(qs);
 
     std::cout << "Output measurement after Fourier and Inverse Fourier: " << reverse_binary(qs.peek_measure_all(), qubits) << '\n';
 
@@ -390,7 +390,7 @@ void quantum_phase_estimation_example()
     aqs::QCircuit qc(qcount + 1);
 
     qs.qubit(qcount) = aqs::QState::one();
-    qs.generate_global_state();
+    qs.generate_statevector();
 
     for (int i = 0; i < qcount; ++i)
         qc << H(i);
@@ -403,18 +403,18 @@ void quantum_phase_estimation_example()
     for (int i = 0; i < qcount; ++i)
         qc << CPhase(i, qcount, angle * static_cast<float>(1 << (qcount - 1 - i)));
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
     //std::cout << "Phase shifted state:\n";
-    //aqs::print_global_state(qs);
-    qs.generate_global_state();
+    //aqs::print_statevector(qs);
+    qs.generate_statevector();
 
     qc << Gate(aqs::inverse_fourier_transform(qcount), 0, "QFT†");
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
     //std::cout << "Phase estimation state output: ";
-    //aqs::print_global_state(qs);
+    //aqs::print_statevector(qs);
 
     auto measurements = qs.profile_measure_all(1e4);
     auto common = std::max_element(measurements.begin(), measurements.end());
@@ -499,11 +499,11 @@ void quantum_shor_algorithm()
     std::cout << "Adding Fourier Transform Gate...\n";
     qc << Gate(aqs::inverse_fourier_transform(output), 0, "QFT†");
 
-    std::cout << "Generating Global State...\n";
-    qs.generate_global_state();
+    std::cout << "Generating Statevector...\n";
+    qs.generate_statevector();
 
     std::cout << "Generating circuit...\n";
-    qc.generate_circuit();
+    qc.compile();
 
     std::cout << "Executing Simulation...\n";
     qs.simulate(qc);
@@ -609,15 +609,15 @@ void quantum_constant_addition()
     qs.qubit(4) = aqs::QState::zero();
 
     std::cout << "\nInput value: " << input_value << " (" << binary_string(input_value, qubits) << ") ; Constant Value: " << const_val << "\n";
-    qs.generate_global_state();
+    qs.generate_statevector();
     //std::cout << "Input state:\n";
-    //aqs::print_global_state(qs);
+    //aqs::print_statevector(qs);
 
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
 
     //std::cout << "Output state:\n";
-    //aqs::print_global_state(qs);
+    //aqs::print_statevector(qs);
     //aqs::print_profile(qs.profile_measure_all(1e4));
 
     std::cout << "Output value: " << binary_string(reverse_binary(qs.peek_measure_all(), qubits), qubits) << "\n";
@@ -668,9 +668,9 @@ void quantum_two_addition()
             qs.qubit(i + input) = (valB & (1 << i)) ? aqs::QState::one() : aqs::QState::zero();
         qs.qubit(2 * input) = aqs::QState::zero();
 
-        qs.generate_global_state();
+        qs.generate_statevector();
 
-        qc.generate_circuit();
+        qc.compile();
 
         qs.simulate(qc);
 
@@ -706,7 +706,7 @@ void quantum_counting()
         qc << ControlGate(aqs::grover_iteration(search_count, oracle, 1 << (output_count - 1 - i)), i, output_count);
 
     qc << Gate(aqs::inverse_fourier_transform(output_count), 0);
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
 
     std::vector<float> qubit_probs(output_count);
@@ -760,16 +760,16 @@ void temp()
     for (int i = 0; i < qc.qubit_count(); ++i)
         qc << X(i);
 
-    qc.generate_circuit();
+    qc.compile();
     aqs::print_circuit_matrix(qc);
 
     QCircuit temp(1);
     temp << Y{0} << X{0} << Y{0} << Z{0} << X{0};
     temp << X{0} << Z{0} << Y{0} << X{0} << Y{0};
-    temp.generate_circuit();
-    temp.reset_circuit();
+    temp.compile();
+    temp.clear();
     temp << RotZ(0, aqs::pi * 2.f);
-    temp.generate_circuit();
+    temp.compile();
     aqs::print_circuit_matrix(temp);
 }
 
@@ -794,7 +794,7 @@ void quantum_teleportation()
 
     // Initial sender qubit state
     qs.qubit(0) = aqs::QState{0.6f, {0.0f, 0.8f}};
-    qs.generate_global_state();
+    qs.generate_statevector();
 
     std::cout << "Sender qubit:\n";
     aqs::print_state(qs.qubit(0));
@@ -808,7 +808,7 @@ void quantum_teleportation()
     qc << aqs::CX{0, 1} << aqs::H{0};
 
     // Sender measures their qubits
-    qc.generate_circuit();
+    qc.compile();
     qs.simulate(qc);
 
     auto q1 = qs.measure(0);
@@ -824,7 +824,7 @@ void quantum_teleportation()
 
     if (q1) qc0 << aqs::Z{2};
 
-    qc0.generate_circuit();
+    qc0.compile();
     qs0.simulate(qc0);
 
     std::cout << "Profiling the qubit received:\n";
@@ -832,7 +832,7 @@ void quantum_teleportation()
 
     //This is to test if the state is the same as the sender's state
     qc0 << aqs::RotX{2, acos(0.6f) * 2};
-    qc0.generate_circuit();
+    qc0.compile();
     qs.simulate(qc0);
 
     std::cout << "\nTesting qubit with a gate:\n";
@@ -846,21 +846,20 @@ void quantum_change_of_basis()
 {
     aqs::QCircuit qc(2);
     qc  << aqs::X{0} << aqs::H{0} << aqs::H{1};
-    qc.generate_circuit();
+    qc.compile();
     aqs::QSimulator qs(2);
     qs.simulate(qc);
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
     qs.set_basis(aqs::QSimulator::Basis::X);
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
     qs.set_basis(aqs::QSimulator::Basis::Z);
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
 }
 
 int main(int argc, char** argv)
 {
     aqs::initialize(argc, argv);
     std::cout << "\n";
-
     
     quantum_classic_xor_example();
     quantum_classic_or_example();

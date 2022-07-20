@@ -11,10 +11,44 @@
 
 #include <algorithm>
 #include <iostream>
+#include <unordered_set>
 
 namespace aqs
 {
-    QCircuit Control_Group_Gate(uint32_t qubits, uint32_t control_qubit, std::vector<uint32_t> target_qubits, const QCircuit& gate)
+    QCircuit Group_Gate(uint32_t qubits, std::vector<uint32_t> target_qubits, QCircuit gate, bool compile)
+    {
+        if (gate.qubit_count() != 1)
+            throw std::invalid_argument{"Gate not supported"};
+
+        std::sort(target_qubits.begin(), target_qubits.end());
+        if (target_qubits.size() >= qubits)
+            throw std::invalid_argument{"Cannot add control gate at the given position"};
+
+        gate.compile();
+        QCircuit qc{qubits};
+
+        af::array circuit = af::identity(fast_pow2(target_qubits.front()), fast_pow2(target_qubits.front()), c32);
+        circuit = tensor_product(circuit, gate.circuit());
+
+        for (std::size_t i = 1; i < target_qubits.size(); ++i)
+        {
+            const auto& curr = target_qubits[i];
+            const auto& prev = target_qubits[i - 1];
+            circuit = tensor_product(circuit,
+                      tensor_product(af::identity(fast_pow2(curr - prev - gate.qubit_count()), fast_pow2(curr - prev - gate.qubit_count()), c32), gate.circuit()));
+        }
+
+        qc.circuit() = tensor_product(circuit, af::identity(
+                                fast_pow2(qubits - 1 - target_qubits.back()), fast_pow2(qubits - 1 - target_qubits.back()), c32));
+
+        if (compile)
+            qc.compile();
+
+        return qc;
+    }
+
+    QCircuit Control_Group_Gate(uint32_t qubits, uint32_t control_qubit, std::vector<uint32_t> target_qubits,
+                                const QCircuit& gate, bool compile)
     {
         if (control_qubit >= qubits)
             throw std::invalid_argument{"Invalid control qubit position"};
@@ -29,7 +63,7 @@ namespace aqs
         if (*pivot == control_qubit)
             throw std::invalid_argument{"Cannot add control gate at the target qubit positions"};
 
-        QCircuit current(qubits);
+        QCircuit qc(qubits);
         auto top_count = std::distance(target_qubits.cbegin(), pivot);
         auto bottom_count = std::distance(pivot, target_qubits.cend());
 
@@ -39,7 +73,7 @@ namespace aqs
             for (auto it = target_qubits.cbegin(); it != pivot; ++it)
                 temp << Gate(gate, std::distance(target_qubits.cbegin(), it));
 
-            current << ControlGate(temp, control_qubit, target_qubits.front());
+            qc << ControlGate(temp, control_qubit, target_qubits.front());
         }
 
         if (bottom_count != 0)
@@ -48,13 +82,16 @@ namespace aqs
             for (auto it = pivot; it != target_qubits.cend(); ++it)
                 temp << Gate(gate, std::distance(pivot, it));
 
-            current << ControlGate(temp, control_qubit, *pivot);
+            qc << ControlGate(temp, control_qubit, *pivot);
         }
 
-        return current;
+        if (compile)
+            qc.compile();
+
+        return qc;
     }
 
-    QCircuit Control_GroupPhase(uint32_t qubits, uint32_t control_qubit, uint32_t target_qubit_begin, float angle)
+    QCircuit  Control_GroupPhase(uint32_t qubits, uint32_t control_qubit, uint32_t target_qubit_begin, float angle, bool compile)
     {
         if (control_qubit >= qubits)
             throw std::invalid_argument{"Invalid control qubit position"};
@@ -73,10 +110,14 @@ namespace aqs
                 cphases << Phase(i, angle);
         }
 
+        if (compile)
+            qc.compile();
+
         return qc;
     } 
 
-    QCircuit NControl_Gate(uint32_t qubits, uint32_t control_qubit_begin, uint32_t control_qubit_count, uint32_t target_qubit_begin, const QCircuit& gate)
+    QCircuit NControl_Gate(uint32_t qubits, uint32_t control_qubit_begin, uint32_t control_qubit_count, uint32_t target_qubit_begin,
+                           const QCircuit& gate, bool compile)
     {
         if (gate.qubit_count() >= qubits)
             throw std::invalid_argument{"Gate not supported"};
@@ -91,7 +132,6 @@ namespace aqs
         if (control_qubit_count == 1)
         {
             qc << ControlGate(gate, control_qubit_begin, target_qubit_begin);
-            return qc;
         }
         else
         {
@@ -104,11 +144,16 @@ namespace aqs
                 temp = std::move(tmp);
             }
             qc << Gate(temp, control_qubit_begin);
-            return qc;
         }
+
+        if (compile)
+            qc.compile();
+
+        return qc;
     }
 
-    QCircuit NControl_Gate(uint32_t qubits, std::vector<uint32_t> control_qubits, uint32_t target_qubit_begin, const QCircuit& gate)
+    QCircuit NControl_Gate(uint32_t qubits, std::vector<uint32_t> control_qubits, uint32_t target_qubit_begin,
+                           const QCircuit& gate, bool compile)
     {
         if (control_qubits.size() == 0)
             throw std::invalid_argument{"Number of control qubits must be at least one"};
@@ -164,6 +209,75 @@ namespace aqs
             current = std::move(temp);
         }
 
+        if (compile)
+            current.compile();
+
         return current;
    }
+
+   QCircuit Rewire_Gate(uint32_t qubits, const std::vector<uint32_t>& new_qubit_positions, const QCircuit& gate, bool compile)
+   {
+        if (new_qubit_positions.size() != gate.qubit_count())
+            throw std::invalid_argument{"New qubit positions must map all the qubits in the gate"};
+        if (gate.qubit_count() > qubits)
+            throw std::domain_error{"Cannot rewire circuit to a lower number of qubits"};
+
+        std::vector<uint32_t> sort_positions = new_qubit_positions;
+        std::partial_sort_copy(new_qubit_positions.begin(), new_qubit_positions.end(), sort_positions.begin(), sort_positions.end());
+        for (uint32_t i = 1; i < sort_positions.size(); ++i)
+        {
+            if (sort_positions[i - 1] == sort_positions[i])
+                throw std::invalid_argument{"Cannot rewire multiple qubits to the same qubit"};
+        }
+
+        std::unordered_set<uint32_t> swapped;
+        swapped.reserve(new_qubit_positions.size());
+
+        QCircuit qc{ qubits };
+        uint32_t swaps = 0;
+        for (uint32_t i = 0; i < new_qubit_positions.size(); ++i)
+        {
+            if (swapped.find(i) != swapped.end())
+                continue;
+            swapped.insert(i);
+
+            uint32_t current = i;
+            while (i != new_qubit_positions[current])
+            {
+                qc << Swap{ current , new_qubit_positions[current] };
+                current = new_qubit_positions[current];
+                swapped.insert(current);
+
+                ++swaps;
+            }
+        }
+
+        qc << Gate{ gate , 0 };
+
+        for (uint32_t i = 0; i < swaps; ++i)
+            qc << *dynamic_cast<Swap*>(qc.gate_list()[swaps - 1 - i].get());
+
+        if (compile)
+            qc.compile();
+
+        return qc;
+    }
+
+    QCircuit Adjoint_Gate(const QCircuit& gate)
+    {
+        QCircuit qc = gate;
+        qc.compile();
+
+        auto& list = qc.gate_list();
+        std::reverse(list.begin(), list.end());
+
+        //Todo
+        //*Reverse circuit text representation
+        //*Adjoint the circuits inside
+
+        qc.circuit() = af::transpose(qc.circuit(), true);
+        // af::transposeInPlace(qc.circuit(), true);
+
+        return qc;
+    }
 }

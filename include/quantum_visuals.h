@@ -31,7 +31,7 @@ namespace aqs
      * 
      * @param simulator simulator storing the global state
      */
-    void print_global_state(const QSimulator& simulator);
+    void print_statevector(const QSimulator& simulator);
 
     /**
      * @brief Prints the given qubit state profile to the stdout stream

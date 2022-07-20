@@ -13,7 +13,6 @@
 
 #include "stress_test.h"
 
-
 template<typename F>
 void profile(F func, int test_count, const std::string& heading)
 {
@@ -127,7 +126,7 @@ void X_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New X gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old X gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -145,7 +144,7 @@ void Y_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New Y gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old Y gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -164,7 +163,7 @@ void Z_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New Z gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old Z gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -183,7 +182,7 @@ void swap_gate_test(int  qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New Swap gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old Swap gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -204,7 +203,7 @@ void Phase_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New Phase gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old Phase gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -223,7 +222,7 @@ void Hadamard_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New Hadamard gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old Hadamard gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -245,7 +244,7 @@ void CX_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New ControlX gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old ControlX gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -267,7 +266,7 @@ void CY_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New ControlY gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old ControlY gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -289,7 +288,7 @@ void CZ_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New ControlZ gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old ControlZ gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -312,7 +311,7 @@ void CPhase_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New ControlPhase gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old ControlPhase gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -335,7 +334,7 @@ void CCNot_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New CControl Not gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old CControl Not gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -358,7 +357,7 @@ void Or_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New Or gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old Or gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -381,7 +380,7 @@ void CSwap_gate_test(int qubit_count, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New CSwap gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old CSwap gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -399,11 +398,12 @@ void CHadamard_gate_test(int qubit_count, int test_count)
 
     auto func2 = [&]() {
         Control_Hadamard_old(control, target)(qc);
+        qc.compile();
         qc.circuit().eval();
     };
 
     profile(func1, test_count, "-- Test: New CHadamard gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old CHadamard gate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -428,7 +428,7 @@ void CircuitGate_test(int qubit_count, int gate_qcount, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New CircuitGate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old CircuitGate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 
@@ -454,7 +454,7 @@ void ControlCircuitGate_test(int qubit_count, int gate_qcount, int test_count)
     };
 
     profile(func1, test_count, "-- Test: New ControlCircuitGate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
-    qc.reset_circuit();
+    qc.clear();
     profile(func2, test_count, "-- Test: Old ControlCircuitGate func for circuit of " + std::to_string(qubit_count) + " qubits  --");
 }
 

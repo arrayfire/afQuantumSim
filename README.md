@@ -39,9 +39,9 @@ It requires the lastest version of NLOPT optimization library for the Variationa
 
 * Implement a rewire circuit feature
 
-### High Priority
-
 * Implement the adjoint operator and unitary gate
+
+### High Priority
 
 * Add a QMeasurement class to deal with profiling and measurements
 

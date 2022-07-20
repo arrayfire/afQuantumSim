@@ -14,7 +14,7 @@
 
 namespace aqs
 {
-    QCircuit grover_oracle(uint32_t search_qubits, uint32_t marked_state)
+    QCircuit grover_oracle(uint32_t search_qubits, uint32_t marked_state, bool compile)
     {
         if (marked_state >= fast_pow2(search_qubits))
             throw std::invalid_argument{"Marked state should be in the range [0, 2^search_qubits)"};
@@ -35,10 +35,14 @@ namespace aqs
             if (!(marked_state & (1 << i)))
                 qc << X(i);
         }
+
+        if (compile)
+            qc.compile();        
+
         return qc;
     }
 
-    QCircuit grover_search(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, std::string oracle_name)
+    QCircuit grover_search(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, std::string oracle_name, bool compile)
     {
         if (oracle.qubit_count() < search_qubits)
            throw std::invalid_argument{"Cannot use given oracle for this qubit circuit"};
@@ -71,10 +75,13 @@ namespace aqs
             }
         }
 
+        if (compile)
+            qc.compile();
+
         return qc;
     }
 
-    QCircuit grover_iteration(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations)
+    QCircuit grover_iteration(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, bool compile)
     {
         QCircuit qc(search_qubits);
         for (uint32_t i = 0; i < iterations; ++i)
@@ -96,10 +103,14 @@ namespace aqs
                 qc << H(j);
             }
         }
+
+        if (compile)
+            qc.compile();
+
         return qc;
     }
 
-    QCircuit fourier_transform(uint32_t qubits)
+    QCircuit fourier_transform(uint32_t qubits, bool compile)
     {
         QCircuit qc(qubits);
         for (int32_t i = qubits - 1; i >= 0; --i)
@@ -109,10 +120,13 @@ namespace aqs
                 qc << CPhase(j, i, aqs::pi / (1 << (i - j)));
         }
 
+        if (compile)
+            qc.compile();
+
         return qc;
     }
 
-    QCircuit inverse_fourier_transform(uint32_t qubits)
+    QCircuit inverse_fourier_transform(uint32_t qubits, bool compile)
     {
         QCircuit qc(qubits);
         for (uint32_t i = 0; i < qubits; ++i)
@@ -122,6 +136,9 @@ namespace aqs
 
             qc << H(i);
         }
+
+        if (compile)
+            qc.compile();
 
         return qc;
     }
@@ -310,7 +327,7 @@ namespace aqs
         qc << aqs::Barrier{false};
     }
 
-    QCircuit hamiltonian_evolution_circuit(const af::array& hamiltonian, uint32_t steps)
+    QCircuit hamiltonian_evolution_circuit(const af::array& hamiltonian, uint32_t steps, bool compile)
     {
         uint32_t qubits = fast_log2(hamiltonian.dims()[0]);
         auto hamiltonian_decomposition = decompose_hamiltonian(hamiltonian, qubits);
@@ -329,11 +346,13 @@ namespace aqs
             qc << aqs::Barrier{false};
         }
 
-        qc.generate_circuit();
+        if (compile)
+            qc.compile();
+
         return qc;
     }
 
-    aqs::QCircuit linear_entanglement_varstate(uint32_t qubits, uint32_t depth, const std::vector<float>& values)
+    QCircuit linear_entanglement_varstate(uint32_t qubits, uint32_t depth, const std::vector<float>& values, bool compile)
     {
         if (qubits == 0)
             throw std::invalid_argument{"Number of qubits must be greater than zero"};
@@ -360,11 +379,13 @@ namespace aqs
                 qc << aqs::RotZ{i, values[qubits * (j + 3) + i]};
         }
 
-        qc.generate_circuit();
+        if (compile)
+            qc.compile();
+
         return qc;
     }
 
-    aqs::QCircuit full_entanglement_varstate(uint32_t qubits, uint32_t depth, const std::vector<float>& values)
+    QCircuit full_entanglement_varstate(uint32_t qubits, uint32_t depth, const std::vector<float>& values, bool compile)
     {
         if (qubits == 0)
             throw std::invalid_argument{"Number of qubits must be greater than zero"};
@@ -394,7 +415,8 @@ namespace aqs
                 qc << aqs::RotZ{i, values[qubits * (j + 3) + i]};
         }
 
-        qc.generate_circuit();
+        if (compile)
+            qc.compile();
 
         return qc;
     }
@@ -448,18 +470,18 @@ namespace aqs
                 break;
             }
 
-            qc.generate_circuit();
-            qs.generate_global_state();
+            qc.compile();
+            qs.generate_statevector();
             qs.simulate(qc);
 
-            auto bra_state = af::transpose(qs.global_state(), true);
+            auto bra_state = af::transpose(qs.statevector(), true);
 
             qc << aqs::Gate{hamiltonian, 0};
-            qc.generate_circuit();
-            qs.generate_global_state();
+            qc.compile();
+            qs.generate_statevector();
             qs.simulate(qc);
 
-            auto ket_state = qs.global_state();
+            auto ket_state = qs.statevector();
             af::cfloat expectation = af::matmul(bra_state, ket_state)(0).scalar<af::cfloat>();
 
             double angle = std::acos(expectation.real);

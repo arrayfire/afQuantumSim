@@ -73,11 +73,11 @@ void generic_hamiltonian_example()
     std::cout << "\nMinimum eigenvalue: " << result << "\n";
     std::cout << "\nAngle parameters" << fparams << "\n";
     std::cout << "\nEigenstate:\n";
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
 
     qs.simulate(hamil_circuit);
     std::cout << "Resulting state:\n";
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
 
     std::cout << "\n--------------------\n\n";
 }
@@ -115,9 +115,9 @@ void hydrogen_molecule_example()
     auto result = pair.first;
     auto& params = pair.second;
 
-    auto circuit = aqs::hamiltonian_evolution_circuit(hamiltonian_matrix, scale);
+    auto circuit = aqs::hamiltonian_evolution_circuit(hamiltonian_matrix, scale, true);
 
-    auto state_circuit = aqs::full_entanglement_varstate(qubits, qubits, params);
+    auto state_circuit = aqs::full_entanglement_varstate(qubits, qubits, params, true);
     aqs::QSimulator qs(qubits);
     qs.simulate(state_circuit);
 
@@ -125,11 +125,11 @@ void hydrogen_molecule_example()
     std::cout << "\nParameters:\n";
     std::cout << params << "\n";
     std::cout << "Eigenstate:\n";
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
 
     std::cout << "\nResulting state:\n";
     qs.simulate(circuit);
-    aqs::print_global_state(qs);
+    aqs::print_statevector(qs);
 
     std::cout << "--------------------\n\n";
 }

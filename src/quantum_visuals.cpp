@@ -22,13 +22,13 @@ void print_state(const QState& state)
     std::cout << std::setprecision(7) << std::defaultfloat << std::noshowpos;
 }
 
-void print_global_state(const QSimulator& simulator)
+void print_statevector(const QSimulator& simulator)
 {
     const int qubits = simulator.qubit_count();
     const int states = simulator.state_count();
     std::vector<af::cfloat> vals(states);
 
-    simulator.global_state().host(vals.data());
+    simulator.statevector().host(vals.data());
     std::cout << std::setprecision(3) << std::fixed << std::showpos;
     for (int i = 0; i < states - 1; ++i)
         std::cout << vals[i] << "|" << binary_string(i, qubits) << "> + " << ((i + 1) % 4 ? "" : "\n");

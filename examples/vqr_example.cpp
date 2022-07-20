@@ -78,12 +78,12 @@ double quantum_inner_product(const af::array& lhs, const af::array& rhs)
 
     aqs::QCircuit qc{qubits + 1};
     qc << aqs::H{0};
-    qc.generate_circuit();
+    qc.compile();
 
-    auto global_state = af::complex(af::join(0, lhs / af::norm(lhs), rhs / af::norm(rhs)));
-    global_state /= af::norm(global_state);
+    auto statevector = af::complex(af::join(0, lhs / af::norm(lhs), rhs / af::norm(rhs)));
+    statevector /= af::norm(statevector);
 
-    aqs::QSimulator qs{qubits + 1, global_state};
+    aqs::QSimulator qs{qubits + 1, statevector};
     qs.simulate(qc);
 
     auto result = qs.qubit_probability_false(0);

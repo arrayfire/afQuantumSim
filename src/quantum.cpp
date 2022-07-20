@@ -11,7 +11,6 @@
 
 #include <random>
 #include <stdexcept>
-#include <unordered_map>
 
 /*
     Pauli X matrix
@@ -63,8 +62,7 @@ static af::randomEngine intern_rnd_engine;
 static std::random_device dv;
 static std::mt19937 rd_gen{dv()};
 
-static std::uniform_real_distribution<float> lin_dist(0.0f, 1.0f);
-static std::unordered_map<uint64_t, af::array> cached_arrays;
+static std::uniform_real_distribution<float> lin_dist{0.0f, 1.0f};
 
 namespace aqs
 {
@@ -99,18 +97,20 @@ bool QState::peek_measure() const
     // Generate randomly a value in range [0, 1]
     float val = lin_dist(rd_gen);
 
-    // If random value is greater than the |1> state probability return measurement 1
+    // If random value is less than the |1> state probability return measurement 1
     // Else return measurement 0
     return val < prob;
 }
 
 bool QState::measure()
 {
+    // Get a random measurement
     bool measurement = peek_measure();
 
+    // Update the state with the measurement
     state_[ measurement] = 1.f;
     state_[!measurement] = 0.f;
-
+ 
     return measurement;
 }
 
@@ -118,6 +118,7 @@ std::array<uint32_t, 2> QState::profile_measure(uint32_t rep_count) const
 {
     uint32_t t = 0;
     for (uint32_t i = 0; i < rep_count; ++i)
+        //Count the results that result in the |1> state
         t += static_cast<uint32_t>(peek_measure());
 
     return { rep_count - t, t };
@@ -146,50 +147,56 @@ QCircuit::QCircuit(uint32_t qubit_count)
         throw std::invalid_argument{"Maximum qubit count supported is " + std::to_string(max_qubit_count)};
 }
 
-void QCircuit::reset_circuit()
+void QCircuit::clear()
 {
+    // Clear list of compiled gates
     cached_index_ = 0;
     gate_list_.clear();
+
+    // Clear circuit matrix
     circuit_ = af::identity(state_count(), state_count(), c32);
 }
 
-void QCircuit::generate_circuit()
+void QCircuit::compile()
 {
     if (cached_index_ != gate_list_.size())
     {
+        // Compiled non-cached gates
         for (std::size_t i = cached_index_; i < gate_list_.size(); ++i)
         {
             const auto& gate = *(gate_list_[i]);
             gate(*this);
         }
+
+        // Update the last cached gate index
         cached_index_ = gate_list_.size();
     }
 }
 
 QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const QNoise& noise_generator)
-    :states_(qubit_count, initial_state), global_state_{fast_pow2(qubit_count), c32}, noise_{noise_generator}, qubits_{qubit_count},
+    :states_(qubit_count, initial_state), statevector_{fast_pow2(qubit_count), c32}, noise_{noise_generator}, qubits_{qubit_count},
      basis_{Basis::Z}
 {
-    generate_global_state();
+    generate_statevector();
 }
 
-QSimulator::QSimulator(uint32_t qubit_count, const af::array& global_state, const QNoise& noise_generator)
+QSimulator::QSimulator(uint32_t qubit_count, const af::array& statevector, const QNoise& noise_generator)
     :states_(qubit_count), noise_{noise_generator}, qubits_{qubit_count}, basis_{Basis::Z}
 {
-    if (global_state.dims()[0] != fast_pow2(qubit_count) ||
-        global_state.dims()[1] != 1 ||
-        global_state.dims()[2] != 1 ||
-        global_state.dims()[3] != 1)
-        throw std::invalid_argument{"Invalid initial global state shape"};
+    if (statevector.dims()[0] != fast_pow2(qubit_count) ||
+        statevector.dims()[1] != 1 ||
+        statevector.dims()[2] != 1 ||
+        statevector.dims()[3] != 1)
+        throw std::invalid_argument{"Invalid initial statevector shape"};
 
-    auto norm = af::norm(global_state);
+    auto norm = af::norm(statevector);
 
-    if (norm == 0.) throw std::invalid_argument{"Cannot have a null global state"};
+    if (norm == 0.) throw std::invalid_argument{"Cannot have a null statevector"};
 
-    global_state_ = global_state / af::norm(global_state);
+    statevector_ = statevector / af::norm(statevector);
 }
 
-void QSimulator::generate_global_state()
+void QSimulator::generate_statevector()
 {
     std::vector<af::cfloat> temp(qubit_count() * 2);
     for (uint32_t i = 0; i < qubit_count(); ++i)
@@ -200,18 +207,19 @@ void QSimulator::generate_global_state()
 
     af::array states = af::array(2, qubit_count(), temp.data());
 
-    global_state_ = states.col(0);
+    statevector_ = states.col(0);
 
-    //Generate the global state from the tensor product of elements
+    //Generate the statevector from the tensor product of elements
     for (uint32_t i = 1; i < qubit_count(); ++i)
-        global_state_ = tensor_product(global_state_, states.col(i));
+        statevector_ = tensor_product(statevector_, states.col(i));
 }
 
 void QSimulator::simulate(const QCircuit& circuit)
 {
     if (circuit.qubit_count() != qubits_)
         throw std::invalid_argument{"Number of qubit states and circuit input qubit states do not match"};
-    global_state_ = af::matmul(circuit.circuit(), global_state_);
+
+    statevector_ = af::matmul(circuit.circuit(), statevector_);
 }
 
 bool QSimulator::peek_measure(uint32_t qubit) const
@@ -219,10 +227,15 @@ bool QSimulator::peek_measure(uint32_t qubit) const
     if (qubit >= qubit_count())
         throw std::out_of_range{"Cannot measure the state of the given qubit"};
 
-    float val = lin_dist(rd_gen);
-    float prob1 = qubit_probability_true(qubit);
+    // Get probability of the qubit for state |1>
+    float prob = qubit_probability_true(qubit);
 
-    return val < prob1;
+    // Generate a random number
+    float val = lin_dist(rd_gen);
+
+    // If the random value is less than the probability |1> return 1
+    // Else return 0
+    return val < prob;
 }
 
 bool QSimulator::measure(uint32_t qubit)
@@ -230,21 +243,33 @@ bool QSimulator::measure(uint32_t qubit)
     if (qubit >= qubit_count())
         throw std::out_of_range{"Cannot measure the state of the given qubit"};
 
+    // Generate a random number
     float val = lin_dist(rd_gen);
     
-    af::array probabilities = af::real(global_state_ * af::conjg(global_state_));
+    // Find the probabilities of each state
+    af::array probabilities = af::real(statevector_ * af::conjg(statevector_));
+
+    // Mark the states at the position of the qubit
     af::array indices = af::iota(state_count(), 1, u32) & fast_pow2(qubit_count() - qubit - 1);
 
-    af::array states1 = af::select(indices.as(b8), global_state_, 0.f);
-    af::array states0 = af::select(indices.as(b8), 0.f, global_state_);
+    // Select the states with qubit in |1> state
+    af::array states1 = af::select(indices.as(b8), statevector_, 0.f);
 
+    // Select the states with qubit in |0> state
+    af::array states0 = af::select(indices.as(b8), 0.f, statevector_);
+
+    // Find the probability for |1>
     float prob1 = af::sum<float>(states1 * af::conjg(states1));
+
+    // If the random value is less than the probability |1> return 1
+    // Else return 0
     bool measurement = val < prob1;
 
+    // Update the statevector with the result of the qubit
     if (measurement)
-        global_state_ = states1 / std::sqrt(prob1);
+        statevector_ = states1 / std::sqrt(prob1);
     else
-        global_state_ = states0 / std::sqrt(1.f - prob1);
+        statevector_ = states0 / std::sqrt(1.f - prob1);
 
     return measurement;
 }
@@ -254,9 +279,8 @@ uint32_t QSimulator::peek_measure_all() const
     // Generate randomly a value in range [0, 1]
     float val = lin_dist(rd_gen);
 
-    af::array conj_gs = af::conjg(global_state_);
-
-    af::array probabilities = af::real(global_state_ * conj_gs);
+    // Find the probabilities for each state
+    af::array probabilities = af::real(statevector_ * af::conjg(statevector_));
 
     //Find all the states that posses a probability greater than or equal to the random value generated
     af::array prob = af::where(af::ceil(af::accum(probabilities) - val));
@@ -269,11 +293,12 @@ uint32_t QSimulator::peek_measure_all() const
 
 uint32_t QSimulator::measure_all()
 {
+    // Generate random measurement
     uint32_t measurement = peek_measure_all();
 
-    //Set the global state to the result of the measurement
-    global_state_(af::span) = 0.f;
-    global_state_(measurement) = 1.f;
+    // Set the statevector to the result of the measurement
+    statevector_(af::span) = 0.f;
+    statevector_(measurement) = 1.f;
 
     return measurement;
 }
@@ -284,13 +309,16 @@ float QSimulator::qubit_probability_true(uint32_t qubit) const
     if (qubit >= qubit_count() || qubit < 0)
         throw std::out_of_range{"Cannot obtain probability of the given qubit"};
 
-    float val = lin_dist(rd_gen);
-    
-    af::array probabilities = af::real(global_state_ * af::conjg(global_state_));
+    // Find the probabilities of each state
+    af::array probabilities = af::real(statevector_ * af::conjg(statevector_));
+
+    // Mark the states at the position of the qubit
     af::array indices = af::iota(state_count(), 1, u32) & fast_pow2(qubit_count() - qubit - 1);
 
-    af::array states1 = af::select(indices.as(b8), global_state_, 0.);
+    // Select the states with qubit in |1> state
+    af::array states1 = af::select(indices.as(b8), statevector_, 0.);
 
+    // Sum the probabilities of all the states that contain the qubit in state |1>
     float prob1 = af::sum<float>(states1 * af::conjg(states1));
 
     return prob1;
@@ -301,7 +329,10 @@ float QSimulator::state_probability(uint32_t state) const
     if (state >= state_count() || state < 0)
         throw std::out_of_range{"Cannot obtain probability of the given state"};
 
-    af::cfloat val = global_state_(state).scalar<af::cfloat>();
+    // Find the state
+    af::cfloat val = statevector_(state).scalar<af::cfloat>();
+
+    // Return probability (state magnitude)
     return val.real * val.real + val.imag * val.imag;
 }
 
@@ -309,7 +340,10 @@ std::vector<float> QSimulator::probabilities() const
 {
     std::vector<float> out(state_count());
 
-    af::array probs = af::real(global_state_ * af::conjg(global_state_));
+    // Find the probabilities of each state
+    af::array probs = af::real(statevector_ * af::conjg(statevector_));
+
+    // Copy to vector
     probs.host(out.data());
 
     return out;
@@ -319,10 +353,14 @@ void QSimulator::set_basis(Basis basis)
 {
     if (basis != basis_)
     {
+
+        // Hadamard X
         static af::cfloat z_to_x_vals[] = {
             { 0.70710678118f, 0.f } , { 0.70710678118f , 0.f },
             { 0.70710678118f, 0.f } , {-0.70710678118f , 0.f }
         };
+
+        // Hadamard Y
         static af::cfloat z_to_y_vals[] = {
             { 0.70710678118f, 0.f } , { 0.70710678118f , 0.f },
             { 0.f, -0.70710678118f } , { 0.f , 0.70710678118f }
@@ -333,6 +371,7 @@ void QSimulator::set_basis(Basis basis)
         static af::array x_to_z = af::inverse(z_to_x);
         static af::array y_to_z = af::inverse(z_to_y);
 
+        // Tranform from current basis to z-basis
         af::array matrix;
         switch (basis_)
         {
@@ -353,6 +392,7 @@ void QSimulator::set_basis(Basis basis)
             return out;
         };
 
+        // Transform from z-basis to target basis
         switch (basis)
         {
         case Basis::Z:
@@ -365,7 +405,8 @@ void QSimulator::set_basis(Basis basis)
             break;
         }
 
-        global_state_ = af::matmul(gen_tensor_matrix(matrix), global_state_);
+        // Update statevector
+        statevector_ = af::matmul(gen_tensor_matrix(matrix), statevector_);
         basis_ = basis;
     }
 }
@@ -379,7 +420,7 @@ std::vector<uint32_t> QSimulator::profile_measure_all(uint32_t rep_count) const
     af::array rnd = af::tile(af::randu(rep_count, f32, intern_rnd_engine), 1, states);
 
     //Generate the cumulative probability of each state along dim 1 and repeat them along dim 0
-    af::array probabilities = af::tile(af::transpose(af::accum(af::real(global_state_ * af::conjg(global_state_)))), rep_count, 1);
+    af::array probabilities = af::tile(af::transpose(af::accum(af::real(statevector_ * af::conjg(statevector_)))), rep_count, 1);
 
     //Find all the states that posses a probability greater than or equal to the random value generated as indices + 1
     auto temp = af::sum(af::ceil(probabilities - rnd), 1).as(u32);
@@ -410,7 +451,7 @@ std::array<uint32_t , 2> QSimulator::profile_measure(uint32_t qubit, uint32_t re
     af::array rnd = af::randu(rep_count, f32, intern_rnd_engine);
 
     //Find the probability of all states
-    af::array probabilities = af::real(global_state_ * af::conjg(global_state_));
+    af::array probabilities = af::real(statevector_ * af::conjg(statevector_));
 
     //Mark the states where the qubit is in state 1
     af::array one_indices = (af::iota(states, 1, u32) & qubit_state).as(b8);
@@ -443,11 +484,15 @@ QCircuit& X::operator()(QCircuit& qc) const
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
     const int32_t mask = 1 << (qubits - target_qubit - 1);
+
+    // Flip the bits of the position of the target qubit
     auto col_indices = af::iota(states, 1, s32) ^ mask;
     auto row_indices = af::iota(states + 1, 1, s32);
 
+    // Generate pauli-X sparse matrix
     auto matrix_x = af::sparse(states, states, af::constant(af::cfloat{1.f , 0.f}, states), row_indices, col_indices);
 
+    // Update circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(matrix_x, circuit);
 
@@ -476,14 +521,21 @@ QCircuit& Y::operator()(QCircuit& qc) const
 
     const int32_t mask = 1 << (qubits - target_qubit - 1);
     auto iota = af::iota(states, 1, s32);
+
+    // Flip the bits of the position of the target qubit
     auto col_indices = iota ^ mask;
     auto row_indices = af::iota(states + 1, 1, s32);
 
+    // Set all |0> positions to i
     auto values = af::constant(af::cfloat{ 0.f , 1.f }, states);
+
+    // Replace all |1> positions to -i
     af::replace(values, (iota & (1 << (qubits - target_qubit - 1))).as(b8), af::constant(af::cfloat{ 0.f , -1.f }, states));
 
+    // Generate pauli-Y sparse matrix
     auto matrix_y = af::sparse(states, states, values, row_indices, col_indices);
 
+    // Update circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(matrix_y, circuit);
 
@@ -515,13 +567,18 @@ QCircuit& Z::operator()(QCircuit& qc) const
     auto col_indices = iota;
     auto row_indices = af::iota(states + 1, 1, s32);
 
+    // Set all |1> positions to -1
     auto vals = af::constant(af::cfloat{ -1.f , 0.f }, states);
+
+    // Replace all |0> positions to 1
     af::replace(vals, (iota & mask).as(b8), af::constant(af::cfloat{ 1.f , 0.f }, states));
 
-    auto matrix_y = af::sparse(states, states, vals, row_indices, col_indices);
+    // Generate pauli-Z sparse matrix
+    auto matrix_z = af::sparse(states, states, vals, row_indices, col_indices);
 
+    // Update circuit
     auto& circuit = qc.circuit();
-    circuit = af::matmul(matrix_y, circuit);
+    circuit = af::matmul(matrix_z, circuit);
 
     return qc;
 }
@@ -548,6 +605,7 @@ QCircuit& RotX::operator()(QCircuit& qc) const
     af::array left_identity = af::identity(fast_pow2(target_qubit), fast_pow2(target_qubit), c32);
     af::array right_identity = af::identity(fast_pow2(qubits - target_qubit - 1), fast_pow2(qubits - target_qubit - 1), c32);
 
+    // Create rotation X matrix
     auto cos_angle = std::cos(angle / 2.0f);
     auto sin_angle = std::sin(angle / 2.0f);
     const af::cfloat vals[] = {
@@ -587,6 +645,7 @@ QCircuit& RotY::operator()(QCircuit& qc) const
     af::array left_identity = af::identity(fast_pow2(target_qubit), fast_pow2(target_qubit), c32);
     af::array right_identity = af::identity(fast_pow2(qubits - target_qubit - 1), fast_pow2(qubits - target_qubit - 1), c32);
 
+    // Create rotation Y matrix
     auto cos_angle = std::cos(angle / 2.0f);
     auto sin_angle = std::sin(angle / 2.0f);
     const af::cfloat vals[] = {
@@ -626,6 +685,7 @@ QCircuit& RotZ::operator()(QCircuit& qc) const
     af::array left_identity = af::identity(fast_pow2(target_qubit), fast_pow2(target_qubit), c32);
     af::array right_identity = af::identity(fast_pow2(qubits - target_qubit - 1), fast_pow2(qubits - target_qubit - 1), c32);
 
+    // Create rotation Z matrix
     auto cos_angle = std::cos(angle / 2.0f);
     auto sin_angle = std::sin(angle / 2.0f);
     const af::cfloat vals[] = {
@@ -699,11 +759,16 @@ QCircuit& Phase::operator()(QCircuit& qc) const
     auto col_indices = iota;
     auto row_indices = af::iota(states + 1, 1, s32);
 
+    // Generate the values for the phase part
     auto vals = af::constant(af::cfloat{ std::cos(angle) , std::sin(angle) }, states);
+
+    // Replace |1> with the phase rotation
     af::replace(vals, (iota & mask).as(b8), af::constant(af::cfloat{ 1.f , 0.f }, states));
 
+    // Generate phase matrix
     auto matrix_phase = af::sparse(states, states, vals, row_indices, col_indices);
 
+    // Update circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(matrix_phase, circuit);
 
@@ -757,16 +822,20 @@ QCircuit& Swap::operator()(QCircuit& qc) const
     int32_t maskA = 1 << (qubits - 1 - target_qubit_A);
     int32_t maskB = 1 << (qubits - 1 - target_qubit_B);
 
-    // Generate column indices (swap the bits in the states of qA and qB)
+    // Create a mask for flipping the bits
     auto col_indices = af::iota(states, 1, s32);
-    auto temp = (col_indices >> posA) ^ (col_indices >> posB);
-    temp = temp & 1;
+    auto temp = ((col_indices >> posA) ^ (col_indices >> posB)) & 1;
+
+    // Generate column indices
+    // Swap the positions of the column by switching the bits in the qubit position
     col_indices = col_indices ^ ((temp << posA) | (temp << posB));
 
     auto row_indices = af::iota(states + 1, 1, s32);
 
+    // Generate swap sparse matrix
     auto swap_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.0f , 0.f }, states), row_indices, col_indices);
 
+    // Update circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(swap_matrix, circuit);
 
@@ -811,11 +880,14 @@ QCircuit& CX::operator()(QCircuit& qc) const
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
     auto column_indices = iota;
+
+    // Flip the bits of the position of the target qubit if the control qubit is set to |1>
     af::replace(column_indices, ((iota ^ control_mask) & control_mask).as(b8), iota ^ target_mask);
 
+    // Generate CX sparse matrix
     auto cx_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
 
-    //Update the circuit matrix by matrix multiplication
+    //Update the circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(cx_matrix, circuit);
 
@@ -861,18 +933,26 @@ QCircuit& CY::operator()(QCircuit& qc) const
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
     auto column_indices = iota;
+
+    // Flip the bits of the position of the target qubit if the control qubit is set to |1>
     af::replace(column_indices, ((iota ^ control_mask) & control_mask).as(b8), iota ^ target_mask);
 
+    // Set all states to be the same by default
     auto values = af::constant(af::cfloat{ 1.f , 0.f }, states);
     auto op_indices = iota & mask;
+
+    // Replace the |0> with i if the control qubit is set to |1>
     af::replace(values, op_indices != mask, af::constant(af::cfloat{ 0.f , 1.f }, states));
+
+    // Replace the |1> with -i if the control qubit is set to |1>
     af::replace(values, op_indices != control_mask, af::constant(af::cfloat{ 0.f , -1.f }, states));
 
-    auto cx_matrix = af::sparse(states, states, values, row_indices, column_indices);
+    // Generate CY sparse matrix
+    auto cy_matrix = af::sparse(states, states, values, row_indices, column_indices);
 
-    //Update the circuit matrix by matrix multiplication
+    //Update the circuit
     auto& circuit = qc.circuit();
-    circuit = af::matmul(cx_matrix, circuit);
+    circuit = af::matmul(cy_matrix, circuit);
 
     return qc;
 }
@@ -917,12 +997,16 @@ QCircuit& CZ::operator()(QCircuit& qc) const
     auto row_indices = af::iota(states + 1, 1, s32);
     auto column_indices = iota;
 
+    // Set all states be set to 1.0 by default
     auto values = af::constant(af::cfloat{ 1.f , 0.f }, states);
+
+    // Replace all |1> states if the control qubit is set to |1>
     af::replace(values, (iota & mask) != mask, af::constant(af::cfloat{ -1.f , 0.f }, states));
 
+    // Generate CZ sparse matrix
     auto cz_matrix = af::sparse(states, states, values, row_indices, column_indices);
 
-    //Update the circuit matrix by matrix multiplication
+    //Update the circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(cz_matrix, circuit);
 
@@ -969,12 +1053,16 @@ QCircuit& CPhase::operator()(QCircuit& qc) const
     auto row_indices = af::iota(states + 1, 1, s32);
     auto column_indices = iota;
 
+    // Set all states by default to 1.0f
     auto values = af::constant(af::cfloat{ 1.f , 0.f }, states);
+
+    // Replace all states containing |1> with the phase rotation if the control qubit is set to |1>
     af::replace(values, (iota & mask) != mask, af::constant(af::cfloat{ std::cos(angle) , std::sin(angle) }, states));
 
+    // Generate CPhase sparse matrix
     auto cphase_matrix = af::sparse(states, states, values, row_indices, column_indices);
 
-    //Update the circuit matrix by matrix multiplication
+    // Update the circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(cphase_matrix, circuit);
 
@@ -1411,7 +1499,7 @@ QCircuit& Gate::operator()(QCircuit& qc) const
     const uint32_t gate_qubit_begin = target_qubit_begin;
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
 
-    internal_circuit.generate_circuit();
+    internal_circuit.compile();
     const af::array& gate = internal_circuit.circuit();
 
     uint32_t rem_count = 1 << (circuit_qubits - gate_qubits);
@@ -1494,7 +1582,7 @@ QCircuit& ControlGate::operator()(QCircuit& qc) const
     const uint32_t gate_qubit_begin = target_qubit_begin;
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
 
-    internal_circuit.generate_circuit();
+    internal_circuit.compile();
     const af::array& gate = internal_circuit.circuit();
 
     uint32_t rem_count = 1 << (circuit_qubits - gate_qubits - 1);

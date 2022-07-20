@@ -11,18 +11,94 @@
 #include <arrayfire.h>
 #include <string>
 
+/**
+ * @brief Returns a string from the repetitions of the passed string
+ * 
+ * @param n number of repetitions
+ * @param str string to repeat
+ * @return std::string 
+ */
 std::string repeat(int n, const std::string& str);
+
+/**
+ * @brief Returns the length of a UTF8 string stored in the string
+ * 
+ * @param str string to obtain the length of
+ * @return std::size_t 
+ */
 std::size_t utf8str_len(std::string str);
 
-af::array tensor_product(const af::array& arr1, const af::array& arr2);
+/**
+ * @brief Executes the tensor product between two arrayfire arrays
+ * 
+ * @param rhs lhs array
+ * @param rhs rhs array
+ * @return af::array result dims[0] = lhs.dims[0] * rhs.dims[1], dims[1] = lhs.dims[1] * rhs.dims[1]
+ */
+af::array tensor_product(const af::array& lhs, const af::array& rhs);
 
-std::string binary_string(int val, int length);
+/**
+ * @brief Returns the string representation of the given measurement
+ * 
+ * @param val value of the measurement
+ * @param length the number of qubits/the length of the bits to read (should be less than or equal to 32)
+ * @return std::string 
+ */
+std::string binary_string(uint32_t val, int length);
+
+/**
+ * @brief Reverses the bits in the given integer value
+ * 
+ * @param val value to reverse
+ * @param length number of bits to be reverse (less than or equal to 32)
+ * @return uint32_t result
+ */
 uint32_t reverse_binary(uint32_t val, int length) noexcept;
+
+/**
+ * @brief Returns the number formed from the range of bits selected
+ * 
+ * @param val value from which the number will be extracted 
+ * @param first index of the first bit
+ * @param last index of the last bit (should be greater than first)
+ * @return uint32_t result
+ */
 uint32_t extract_binary(uint32_t val, int first, int last) noexcept;
+
+/**
+ * @brief Al
+ * 
+ * @param value 
+ * @param max_denominator 
+ * @return std::pair<int64_t, int64_t> 
+ */
 std::pair<int64_t, int64_t> approximate_fraction(double value, int64_t max_denominator);
+
+/**
+ * @brief Returns the Greates Common Divisor (GCD) of two numbers
+ * 
+ * @details Uses euclid's algorithm
+ * 
+ * @param a 
+ * @param b 
+ * @return int64_t 
+ */
 int64_t gcd(int64_t a, int64_t b);
 
+/**
+ * @brief Returns the power of 2 that correspond to the given exponent
+ * 
+ * @param pow Power/Exponent
+ * @return uint32_t 
+ */
 static inline uint32_t fast_pow2(uint32_t pow) { return 1 << pow; }
+
+/**
+ * @brief Returns the truncated integer logarithm base 2 of the given number
+ * 
+ * @param val number to log
+ * @return uint32_t 
+ */
 static inline uint32_t fast_log2(uint32_t val) { int counter = -(val!=0); for(;val;counter++) val >>=1; return counter; }
 
 /**

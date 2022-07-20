@@ -25,9 +25,11 @@ namespace aqs
      * @param search_qubits number of the qubits of the search space
      * @param oracle the oracle circuit that marks the solutions
      * @param iterations number of iterations of Grover's Iteration
-     * @return QCircuit 
+     * @param compile flag to compile the circuit before returning
+     * 
+     * @return Grover Iteration QCircuit
      */
-    QCircuit grover_iteration(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations);
+    QCircuit grover_iteration(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, bool compile = false);
 
     /**
      * @brief Generates a circuit which executes Grover' search algorithm using the given oracle and iterations
@@ -36,18 +38,25 @@ namespace aqs
      * @param oracle the oracle circuit that marks the solutions
      * @param iterations number of iterations of Grover's Iteration
      * @param oracle_name name to assign to the oracle gate
-     * @return QCircuit 
+     * @param compile flag to compile the circuit before returning
+     * 
+     * @return Grover Search QCircuit 
      */
-    QCircuit grover_search(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, std::string oracle_name = "");
+    QCircuit grover_search(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations,
+                           std::string oracle_name = "", bool compile = false);
 
     /**
-     * @brief 
+     * @brief Generates a oracle circuit that marks the passed state
      * 
-     * @param search_qubits 
-     * @param marked_state 
+     * @details Marks the state by doing a pi-phase shift on the state (flipping the |1> state sign)
+     * 
+     * @param search_qubits number of qubits for the search space
+     * @param marked_state state to mark with the oracle
+     * @param compile flag to compile the circuit before returning
+     * 
      * @return QCircuit 
      */
-    QCircuit grover_oracle(uint32_t search_qubits, uint32_t marked_state);
+    QCircuit grover_oracle(uint32_t search_qubits, uint32_t marked_state, bool compile = false);
 
     /**
      * @brief Generates the Quantum Fourier Algorithm Circuit for the given amount of qubits
@@ -55,9 +64,11 @@ namespace aqs
      * @details Most significant digit of the element in the fourier basis is at the top (0-qubit)
      * 
      * @param qubits number of qubits for QFT workspace
+     * @param compile flag to compile the circuit before returning
+     * 
      * @return QCircuit 
      */
-    QCircuit fourier_transform(uint32_t qubits);
+    QCircuit fourier_transform(uint32_t qubits, bool compile = false);
 
     /**
      * @brief Generates the Inverse Quantum Fourier Algorithm Circuit for the given amount of qubits
@@ -65,9 +76,11 @@ namespace aqs
      * @details Receives the most significant digit of the element in the fourier basis at the top (0-qubit)
      * 
      * @param qubits number of qubits for QFT† workspace
+     * @param compile flag to compile the circuit before returning
+     * 
      * @return QCircuit 
      */
-    QCircuit inverse_fourier_transform(uint32_t qubits);
+    QCircuit inverse_fourier_transform(uint32_t qubits, bool compile = false);
 
     /**
      * @brief Returns the Pauli Product decomposition of a hamiltonian(matrix) using the given number of qubits
@@ -96,10 +109,11 @@ namespace aqs
      * 
      * @param hamiltonian hamiltonian matrix which will be represented
      * @param steps number of steps the time evolution will be segmented in
+     * @param compile flag to compile the circuit before returning
      * 
      * @return aqs::QCircuit circuit with the time evolved hamiltonian
      */
-    QCircuit hamiltonian_evolution_circuit(const af::array& hamiltonian, uint32_t steps);
+    QCircuit hamiltonian_evolution_circuit(const af::array& hamiltonian, uint32_t steps, bool compile = false);
 
     /**
      * @brief Creates a circuit linear variational state generator given the number of qubits, the depth of the circuit,
@@ -108,10 +122,11 @@ namespace aqs
      * @param qubits number of qubits of the circuit
      * @param depth depth of the circuit
      * @param values parameters of the rotations
+     * @param compile flag to compile the circuit before returning
      * 
      * @return aqs::QCircuit circuit of the state
      */
-    aqs::QCircuit linear_entanglement_varstate(uint32_t qubits, uint32_t depth, const std::vector<float>& values);
+    QCircuit linear_entanglement_varstate(uint32_t qubits, uint32_t depth, const std::vector<float>& values, bool compile = false);
 
     /**
      * @brief Creates a circuit full variational state generator given the number of qubits, the depth of the circuit,
@@ -120,10 +135,11 @@ namespace aqs
      * @param qubits number of qubits of the circuit
      * @param depth depth of the circuit
      * @param values parameters of the rotations
+     * @param compile flag to compile the circuit before returning
      * 
      * @return aqs::QCircuit circuit of the state
      */
-    aqs::QCircuit full_entanglement_varstate(uint32_t qubits, uint32_t depth, const std::vector<float>& values);
+    QCircuit full_entanglement_varstate(uint32_t qubits, uint32_t depth, const std::vector<float>& values, bool compile = false);
 
     enum class VQE
     {

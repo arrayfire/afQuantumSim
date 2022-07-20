@@ -29,7 +29,7 @@ af::array tensor_product(const af::array& mat1, const af::array& mat2)
     }
 }
 
-std::string binary_string(int val, int length)
+std::string binary_string(uint32_t val, int length)
 {
     std::string out;
     out.resize(length + 1);

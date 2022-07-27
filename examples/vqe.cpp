@@ -11,8 +11,6 @@
 #include <numeric>
 #include <random>
 
-#include <nlopt.hpp>
-
 #include "quantum.h"
 #include "quantum_algo.h"
 #include "quantum_visuals.h"
@@ -43,6 +41,7 @@ void generic_hamiltonian_example()
     const uint32_t qubits = 2;
     const uint32_t depth = qubits;
 
+    // Create a diagonal matrix as the hamiltonian
     af::cfloat hamil_values[] = {
         {0.f},{0.f},{0.f},{-1.f}
     };
@@ -52,6 +51,7 @@ void generic_hamiltonian_example()
     std::cout << "Hamiltonian to find minimum eigenvalue of:\n";
     af_print(hamil_matrix);
 
+    // Create a hamiltonian evolution of 1/10 the scale
     int scale = 10;
     auto hamil_circuit = aqs::hamiltonian_evolution_circuit(hamil_matrix, scale);
     std::cout << "Pauli representation of the hamiltonian: " << aqs::decompose_hamiltonian(hamil_matrix, 2) << "\n";
@@ -62,10 +62,12 @@ void generic_hamiltonian_example()
     std::cout << "\nHamiltonian evolution circuit representation:\n";    
     aqs::print_circuit_text_image(hamil_circuit, aqs::QSimulator{2});
 
+    // Use variational quantum eigensolver to search for the smallest eigenvalue in the range [-10,10]
     auto pair = aqs::variational_quantum_eigensolver(hamil_matrix, (float)scale, aqs::VQE::LINEAR);
     const auto& result = pair.first;
     const auto& fparams = pair.second;
 
+    // Display the state generator circuit from the paramaters
     auto state_circuit = aqs::linear_entanglement_varstate(qubits, qubits, fparams);
     aqs::QSimulator qs(qubits);
     qs.simulate(state_circuit);
@@ -86,6 +88,7 @@ void hydrogen_molecule_example()
 {
     std::cout << "***** Hydrogen molecule ground energy ***** \n\n";
 
+    // Create the pauli-decomposition for the hydrogen molecule hamiltonian
     std::vector<std::pair<std::string, af::cfloat>> hamiltonian_description = {
         {"iizi", {-0.24274501250395486f}},
         {"iiiz", {-0.24274501250395486f}},
@@ -106,11 +109,13 @@ void hydrogen_molecule_example()
 
     const uint32_t qubits = 4;
     const uint32_t depth = qubits;
-
     const int scale = 10;
+
+    // Build hamiltonian matrix from the decomposition
     af::array hamiltonian_matrix = aqs::compose_hamiltonian(hamiltonian_description);
     std::cout << "Hydrogen molecule decomposed hamiltonian:\n" << aqs::decompose_hamiltonian(hamiltonian_matrix, qubits);
 
+    // Find the smallest eigenvalue (= ground energy) for the hamiltonian
     auto pair = aqs::variational_quantum_eigensolver(hamiltonian_matrix, scale, aqs::VQE::LINEAR, 0.0f, 1000);
     auto result = pair.first;
     auto& params = pair.second;
@@ -137,6 +142,7 @@ void hydrogen_molecule_example()
 int main(int argc, char** argv)
 {
     aqs::initialize(argc, argv);
+    std::cout << af::infoString() << std::endl;
 
     generic_hamiltonian_example();
 

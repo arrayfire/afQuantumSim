@@ -14,27 +14,24 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 find_package(ArrayFire REQUIRED)
-find_package(OpenCL QUIET)
-find_package(CUDA QUIET)
 find_package(nlopt REQUIRED)
+
+add_library(afquantum
+                src/quantum.cpp
+                src/quantum_algo.cpp
+                src/quantum_gates.cpp
+                src/quantum_visuals.cpp
+                src/utils.cpp
+                include/quantum.h
+                include/quantum_algo.h
+                include/quantum_gates.h
+                include/quantum_visuals.h
+                include/utils.h)
+
+target_include_directories(afquantum PUBLIC include)
+
+set(AF_BUILD_BACKEND ArrayFire::af CACHE STRING "Arrayfire backend type")
+target_link_libraries(afquantum PRIVATE NLopt::nlopt PUBLIC ${AF_BUILD_BACKEND})
 
 add_subdirectory(examples)
 add_subdirectory(test)
-
-set(AQS_PROJECT_DIR "${PROJECT_SOURCE_DIR}")
-message(${AQS_PROJECT_DIR})
-set(AQS_SOURCES "${CMAKE_CURRENT_LIST_DIR}/src/quantum.cpp"
-                "${CMAKE_CURRENT_LIST_DIR}/src/quantum_algo.cpp"
-                "${CMAKE_CURRENT_LIST_DIR}/src/quantum_gates.cpp"
-                "${CMAKE_CURRENT_LIST_DIR}/src/quantum_visuals.cpp"
-                "${CMAKE_CURRENT_LIST_DIR}/src/utils.cpp"
-                CACHE INTERNAL "")
-
-set(AQS_HEADER_DIR "${CMAKE_CURRENT_LIST_DIR}/include" CACHE INTERNAL "")
-
-set(AQS_HEADERS "${CMAKE_CURRENT_LIST_DIR}/include/quantum.h"
-                "${CMAKE_CURRENT_LIST_DIR}/include/quantum_algo.h"
-                "${CMAKE_CURRENT_LIST_DIR}/include/quantum_gates.h"
-                "${CMAKE_CURRENT_LIST_DIR}/include/quantum_visuals.h"
-                "${CMAKE_CURRENT_LIST_DIR}/include/utils.h"
-                CACHE INTERNAL "")

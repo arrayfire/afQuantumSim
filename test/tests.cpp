@@ -31,6 +31,10 @@ bool qsequal(const aqs::QState& a, const aqs::QState& b, float diff)
     return cfequal(a[0], b[0], diff) && cfequal(a[1], b[1], diff);
 }
 
+bool arrayEquals(const af::array& lhs, const af::array& rhs, float abs_diff)
+{
+    return af::allTrue<bool>(af::abs(lhs - rhs) < abs_diff);
+}
 /**
  * @brief Tests all constructors of the QState class
  * 
@@ -748,6 +752,8 @@ void test_qsim_gates()
     qc.compile();
     qs.simulate(qc);
 
+    print_statevector(qs);
+
     assert(cfequal(qs.state(0b0100), af::cfloat{invsqrt8, invsqrt8}, diff));
     assert(cfequal(qs.state(0b0101), af::cfloat{-invsqrt8, -invsqrt8}, diff));
     assert(cfequal(qs.state(0b0110), af::cfloat{-invsqrt8, -invsqrt8}, diff));
@@ -1103,16 +1109,28 @@ void test_special_gates()
 
     {
         QCircuit ref{ 4 };
-        ref << Swap{ 2 , 3 } << CPhase{ 1 , 2 , -aqs::pi / 6.f } << CX{ 0 , 1 };
+        ref 
+        << CRotY{ 3 , 0,  aqs::pi / 2.f } 
+        << X{ 0 } 
+        << CRotX{ 1 , 3, -aqs::pi / 4.f } 
+        << CPhase{ 2 , 1,  aqs::pi / 3.f} 
+        << Swap{ 1 , 2 };
         ref.compile();
 
         QCircuit circuit{ 4 };
-        circuit << CX{ 0 , 1 } << CPhase{ 1 , 2 , aqs::pi / 6.f } << Swap{ 2 , 3 };
+        circuit 
+        << Swap{ 1 , 2 } 
+        << CPhase{ 2 , 1 , -aqs::pi / 3.f } 
+        << CRotX{ 1 , 3 , aqs::pi / 4.f } 
+        << X{ 0 } 
+        << CRotY{ 3 , 0 , -aqs::pi / 2.f };
         circuit.compile();
 
         QCircuit qc = Adjoint_Gate(circuit);
 
-        assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
+        //assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
+        //af_print(af::abs(qc.circuit() - ref.circuit()) < 1e-5);
+        assert(arrayEquals(qc.circuit(), ref.circuit(), 1e-5));
     }
 
     std::cout << "Finished test_special_gates...\n" << std::endl;

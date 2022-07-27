@@ -18,7 +18,7 @@
  * @param str string to repeat
  * @return std::string 
  */
-std::string repeat(int n, const std::string& str);
+std::string repeat(std::size_t n, const std::string& str);
 
 /**
  * @brief Returns the length of a UTF8 string stored in the string

@@ -60,10 +60,10 @@ namespace aqs
             for (uint32_t j = 0; j < search_qubits; ++j)
                 qc << H{j};
 
-            qc << Z{search_qubits - 1};
+            //qc << Z{search_qubits - 1};
             for (uint32_t j = 0; j < search_qubits; ++j)
                 qc << X{j};
-            qc << Z{search_qubits - 1};
+            //qc << Z{search_qubits - 1};
             
             //Generate a N-Control Z gate
             qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
@@ -90,10 +90,8 @@ namespace aqs
             for (uint32_t j = 0; j < search_qubits; ++j)
                 qc << H{j};
 
-            qc << Z{search_qubits - 1};
             for (uint32_t j = 0; j < search_qubits; ++j)
                 qc << X{j};
-            qc << Z{search_qubits - 1};
 
             qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
 
@@ -480,6 +478,7 @@ namespace aqs
             qc.compile();
             qs.generate_statevector();
             qs.simulate(qc);
+
 
             auto ket_state = qs.statevector();
             af::cfloat expectation = af::matmul(bra_state, ket_state)(0).scalar<af::cfloat>();

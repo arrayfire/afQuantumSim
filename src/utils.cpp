@@ -124,12 +124,15 @@ int64_t gcd(int64_t a, int64_t b)
     return a;
 }
 
-std::string repeat(int n, const std::string& str)
+std::string repeat(std::size_t n, const std::string& str)
 {
-    std::ostringstream oss;
-    for(int i = 0; i < n; i++)
-        oss << str;
-    return oss.str();
+    std::string out;
+    out.reserve(str.size() * n);
+
+    for(std::size_t i = 0; i < n; i++)
+        out.append(str);
+
+    return out;
 }
 
 std::size_t utf8str_len(std::string str)

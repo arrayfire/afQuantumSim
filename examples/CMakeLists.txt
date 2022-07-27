@@ -10,38 +10,47 @@ project(afQuantumSim-Examples
         VERSION 1.0
         LANGUAGES CXX)
 
-if(${ArrayFire_CPU_FOUND})
-    add_executable(example_scientific_cpu examples.cpp ${AQS_SOURCES})
-    add_executable(vqe_example_cpu vqe_example.cpp ${AQS_SOURCES} ${AQS_HEADERS})
-    add_executable(vqr_example_cpu vqr_example.cpp ${AQS_SOURCES})
-    target_link_libraries(example_scientific_cpu ArrayFire::afcpu NLopt::nlopt)
-    target_link_libraries(vqe_example_cpu ArrayFire::afcpu NLopt::nlopt)
-    target_link_libraries(vqr_example_cpu ArrayFire::afcpu NLopt::nlopt)
-    target_include_directories(example_scientific_cpu PUBLIC ${AQS_HEADER_DIR})
-    target_include_directories(vqe_example_cpu PUBLIC ${AQS_HEADER_DIR})
-    target_include_directories(vqr_example_cpu PUBLIC ${AQS_HEADER_DIR})
-endif()
+add_executable(example examples.cpp)
+target_link_libraries(example PRIVATE afquantum)
 
-if(${ArrayFire_CUDA_FOUND})
-    add_executable(example_scientific_cuda examples.cpp ${AQS_SOURCES})
-    add_executable(vqe_example_cuda vqe_example.cpp ${AQS_SOURCES})
-    add_executable(vqr_example_cuda vqr_example.cpp ${AQS_SOURCES})
-    target_link_libraries(example_scientific_cuda ArrayFire::afcuda NLopt::nlopt)
-    target_link_libraries(vqe_example_cuda ArrayFire::afcuda NLopt::nlopt)
-    target_link_libraries(vqr_example_cuda ArrayFire::afcuda NLopt::nlopt)
-    target_include_directories(example_scientific_cuda PUBLIC ${AQS_HEADER_DIR})
-    target_include_directories(vqe_example_cuda PUBLIC ${AQS_HEADER_DIR})
-    target_include_directories(vqr_example_cuda PUBLIC ${AQS_HEADER_DIR})
-endif()
+add_executable(helloworld helloworld.cpp)
+target_link_libraries(helloworld PRIVATE afquantum)
 
-if(${ArrayFire_OpenCL_FOUND})
-    add_executable(example_scientific_opencl examples.cpp ${AQS_SOURCES})
-    add_executable(vqe_example_opencl vqe_example.cpp ${AQS_SOURCES})
-    add_executable(vqr_example_opencl vqr_example.cpp ${AQS_SOURCES})
-    target_link_libraries(example_scientific_opencl ArrayFire::afopencl NLopt::nlopt)
-    target_link_libraries(vqe_example_opencl ArrayFire::afopencl NLopt::nlopt)
-    target_link_libraries(vqr_example_opencl ArrayFire::afopencl NLopt::nlopt)
-    target_include_directories(example_scientific_opencl PUBLIC ${AQS_HEADER_DIR})
-    target_include_directories(vqe_example_opencl PUBLIC ${AQS_HEADER_DIR})
-    target_include_directories(vqr_example_opencl PUBLIC ${AQS_HEADER_DIR})
-endif()
+add_executable(superposition superposition.cpp)
+target_link_libraries(superposition PRIVATE afquantum)
+
+add_executable(entanglement entanglement.cpp)
+target_link_libraries(entanglement PRIVATE afquantum)
+
+add_executable(basis_change basis_change.cpp)
+target_link_libraries(basis_change PRIVATE afquantum)
+
+add_executable(classical_gates classical_gates.cpp)
+target_link_libraries(classical_gates PRIVATE afquantum)
+
+add_executable(classic_2bit_adder classic_2bit_adder.cpp)
+target_link_libraries(classic_2bit_adder PRIVATE afquantum)
+
+add_executable(fourier_transform fourier_transform.cpp)
+target_link_libraries(fourier_transform PRIVATE afquantum)
+
+add_executable(qft_adder qft_adder.cpp)
+target_link_libraries(qft_adder PRIVATE afquantum)
+
+add_executable(phase_estimation phase_estimation.cpp)
+target_link_libraries(phase_estimation PRIVATE afquantum)
+
+add_executable(grover_search grover_search.cpp)
+target_link_libraries(grover_search PRIVATE afquantum)
+
+add_executable(quantum_counting quantum_counting.cpp)
+target_link_libraries(quantum_counting PRIVATE afquantum)
+
+add_executable(quantum_teleportation quantum_teleportation.cpp)
+target_link_libraries(quantum_teleportation PRIVATE afquantum)
+
+add_executable(vqe vqe.cpp)
+target_link_libraries(vqe PRIVATE afquantum)
+
+add_executable(vqr vqr.cpp)
+target_link_libraries(vqr PRIVATE afquantum NLopt::nlopt)

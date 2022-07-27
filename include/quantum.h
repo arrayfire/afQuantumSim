@@ -36,7 +36,7 @@
  * 2. Create a Quantum Circuit by using the class `aqs::QCircuit`.
  *    Specify the number of qubits by passing it to the contructor
  * 
- *    e.g. aqs::QCircuit qc{4};
+ *    e.g. aqs::QCircuit qc{2};
  * 
  * 3. Insert gates by using the `<<` (left shift) operator with the Quantum Circuit at the left and any added gates at the right.
  *    To create the gates, call the constructor of each gate. Depending on the gate being added,
@@ -56,7 +56,7 @@
  *    It must be initialized with the same number of qubits as the circuit,
  *    and can be added an initial state to setup the statevector in.
  * 
- *    e.g. aqs::QSimulator qs{4, aqs::QState::one()}; // All the qubits are set into an inital |1> state
+ *    e.g. aqs::QSimulator qs{2, aqs::QState::one()}; // All the qubits are set into an inital |1> state
  * 
  * 6. Finally, to execute the simulation, call the QSimulator Member function `aqs::QSimulator::simulate`
  *    using the simulator created and pass the circuit as the argument.
@@ -85,7 +85,7 @@
  *    and that measuring will result in the result of the last qubit being stored in the least significant bit of the binary string
  *  - The representation of complex states and calculations use single floating point numbers.
  *  - The maximum number of qubits that can be used in the simulations is 30.
- *  - All the matrix and vectors are stored in ArrayFire arrays
+ *  - All the matrix and vectors are stored in ArrayFire arrays of type c32 (1 complex float = 2 floats)
  * 
  */
 
@@ -112,8 +112,9 @@ class QSimulator;
  * 
  * @param argc 
  * @param argv 
+ * @param backend arrayfire backend for the simulator to use
  */
-void initialize(int argc, char** argv);
+void initialize(int argc, char** argv, af::Backend backend = af::Backend::AF_BACKEND_DEFAULT);
 
 /**
  * @brief Class managing the behaviour of one qubit
@@ -365,6 +366,8 @@ public:
      * @return const std::vector<std::shared_ptr<aqs::QGate>>&
      */
     const auto& gate_list() const noexcept { return gate_list_; }
+
+    std::string& representation() noexcept { return representation_; }
 
     const std::string& representation() const noexcept { return representation_; }
 
@@ -733,7 +736,7 @@ public:
     std::string to_string() const override { return visible ? "B;" : "P;"; }
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Barrier); }
 
-    static uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Barrier); }
+    static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Barrier); }
 
     bool visible = true;
 };
@@ -833,7 +836,7 @@ public:
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotX); }
     static QCircuit gate(float angle) {
-        static QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotX{0, angle}; qc.compile(); return qc; }();
+        QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotX{0, angle}; qc.compile(); return qc; }();
         return qc;
     }
 
@@ -857,7 +860,7 @@ public:
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotY); }
     static QCircuit gate(float angle) {
-        static QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotY{0, angle}; qc.compile(); return qc; }();
+        QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotY{0, angle}; qc.compile(); return qc; }();
         return qc;
     }
 
@@ -881,7 +884,7 @@ public:
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotZ); }
     static QCircuit gate(float angle) {
-        static QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotZ{0, angle}; qc.compile(); return qc; }();
+        QCircuit qc = [&angle](){ QCircuit qc(1); qc << RotZ{0, angle}; qc.compile(); return qc; }();
         return qc;
     }
 
@@ -929,7 +932,9 @@ public:
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Phase); }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Phase); }
-    static QCircuit gate(float angle);
+    static QCircuit gate(float angle){
+        return [angle](){ QCircuit qc{ 1 }; qc << Phase{ 0, angle }; qc.compile(); return qc; }();
+    }
 
     uint32_t target_qubit;
     float angle;
@@ -994,7 +999,7 @@ public:
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CY); }
 
-    static uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CY); }
+    static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CY); }
 
     uint32_t control_qubit;
     uint32_t target_qubit;

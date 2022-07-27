@@ -196,11 +196,13 @@ namespace aqs
         if (top.size() != 0)
         {
             // Add top control qubits
+            uint32_t prev = target_qubit_begin;
             for (auto it = top.rbegin(); it != top.rend() - 1; ++it)
             {
                 const auto& control_qubit = *it;
                 QCircuit temp(qubits - control_qubit);
-                temp << ControlGate(current, 0, target_qubit_begin - control_qubit);
+                temp << ControlGate{ current , 0 , prev - control_qubit };
+                prev = control_qubit;
                 current = std::move(temp);
             }
 
@@ -271,12 +273,102 @@ namespace aqs
         auto& list = qc.gate_list();
         std::reverse(list.begin(), list.end());
 
-        //Todo
-        //*Reverse circuit text representation
-        //*Adjoint the circuits inside
+        for (auto& g_ptr : list)
+        {
+            switch (g_ptr->type())
+            {
+            case Barrier::static_type():
+            case X::static_type():
+            case Y::static_type():
+            case Z::static_type():
+            case H::static_type():
+            case Swap::static_type():
+            case CSwap::static_type():
+            case CX::static_type():
+            case CY::static_type():
+            case CZ::static_type():
+            case CCNot::static_type():
+            case Or::static_type():
+                break;
+
+            case RotX::static_type():
+            {
+                auto& g = *dynamic_cast<RotX*>(g_ptr.get());
+                g.angle = -g.angle;
+                break;
+            }
+            case RotY::static_type():
+            {
+                auto& g = *dynamic_cast<RotY*>(g_ptr.get());
+                g.angle = -g.angle;
+                break;
+            }
+            case RotZ::static_type():
+            {
+                auto& g = *dynamic_cast<RotZ*>(g_ptr.get());
+                g.angle = -g.angle;
+                break;
+            }
+            case Phase::static_type():
+            {
+                auto& g = *dynamic_cast<Phase*>(g_ptr.get());
+                g.angle = -g.angle;
+                break;
+            }
+            case CRotX::static_type():
+            {
+                auto& g = *dynamic_cast<CRotX*>(g_ptr.get());
+                g.angle = -g.angle;
+                break;
+            }
+            case CRotY::static_type():
+            {
+                auto& g = *dynamic_cast<CRotY*>(g_ptr.get());
+                g.angle = -g.angle;
+                break;
+            }
+            case CRotZ::static_type():
+            {
+                auto& g = *dynamic_cast<CRotZ*>(g_ptr.get());
+                g.angle = -g.angle;
+                break;
+            }
+            case CPhase::static_type():
+            {
+                auto& g = *dynamic_cast<CPhase*>(g_ptr.get());
+                g.angle = -g.angle;
+                break;
+            }
+            case Gate::static_type():
+            {
+                auto& g = *dynamic_cast<Gate*>(g_ptr.get());
+                g.internal_circuit = Adjoint_Gate(g.internal_circuit);
+                break;
+            }
+            case ControlGate::static_type():
+            {
+                auto& g = *dynamic_cast<ControlGate*>(g_ptr.get());
+                g.internal_circuit = Adjoint_Gate(g.internal_circuit); 
+                break;
+            }
+            default:
+                throw;
+            }
+        }
+
+        const auto& rep = qc.representation();
+        std::size_t prev = 0;
+        auto mark = rep.find(';', prev);
+        std::string current;
+        while(mark != std::string::npos)
+        {
+            current = rep.substr(prev, mark - prev + 1) + current;
+            prev = mark + 1;
+            mark = rep.find(';', prev);
+        }
+        qc.representation() = current;
 
         qc.circuit() = af::transpose(qc.circuit(), true);
-        // af::transposeInPlace(qc.circuit(), true);
 
         return qc;
     }

@@ -6,6 +6,7 @@
  * The complete license agreement can be obtained at:
  * http://arrayfire.com/licenses/BSD-3-Clause
  ********************************************************/
+
 #include <iostream>
 #include <vector>
 #include <numeric>
@@ -125,7 +126,8 @@ struct PolynomialData
 /**
  * @brief Cost function for fitting a general nth degree polynomial
  * 
- * @details The minimum value for this function is 1.0
+ * @details Uses the function signature required for NLOPT
+ *          The minimum value for this function is 1.0
  *          The pointer pass to data should be a pointer to a PolynomialData variable
  * 
  * @param params 
@@ -277,7 +279,7 @@ void polynomial_regression()
 int main(int argc, char** argv)
 {
     aqs::initialize(argc, argv);
-    std::cout << '\n';
+    std::cout << af::infoString() << std::endl;
 
     equality_regression();
 

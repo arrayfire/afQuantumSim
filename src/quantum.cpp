@@ -67,14 +67,32 @@ static std::uniform_real_distribution<float> lin_dist{0.0f, 1.0f};
 namespace aqs
 {
 
+void initialize(int argc, char** argv, af::Backend backend)
+{
+    int device = (argc > 1) ? ::std::stoi(argv[1]) : 0;
+    af::setDevice(device);
+    af::setBackend(backend);
+
+    x_matrix = af::array(2, 2, x_mat);
+
+    y_matrix = af::array(2, 2, y_mat);
+
+    z_matrix = af::array(2, 2, z_mat);
+
+    hadamard_matrix = af::array(2, 2, h_mat);
+
+    std::random_device rnd_device;
+    intern_rnd_engine = af::randomEngine(AF_RANDOM_ENGINE_THREEFRY, rnd_device());
+}
+
 QState::QState(const std::complex<float>& zeroState, const std::complex<float>& oneState)
-    :state_{ af::cfloat{zeroState.real(), zeroState.imag()} , af::cfloat{oneState.real(), oneState.imag()}}
+    :state_{ af::cfloat{ zeroState.real(), zeroState.imag() } , af::cfloat{ oneState.real(), oneState.imag() } }
 {
     force_normalize();
 }
 
 QState::QState(const std::array<std::complex<float>, 2>& states)
-    :state_{af::cfloat{states[0].real() , states[0].imag()}, af::cfloat{states[1].real() , states[1].imag()}}
+    :state_{ af::cfloat{ states[0].real() , states[0].imag() } , af::cfloat{ states[1].real() , states[1].imag() } }
 {   
     force_normalize();
 }
@@ -1247,15 +1265,14 @@ QCircuit& CRotX::operator()(QCircuit& qc) const
     if (target_qubit == control_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    QCircuit rotx(1);
-    rotx << RotX(0, angle);
+    ControlGate(RotX::gate(angle), control_qubit, target_qubit)(qc);
 
-    return qc << ControlGate(rotx, control_qubit, target_qubit);
+    return qc;
 }
 
 std::string CRotX::to_string() const
 {
-    return "RotX,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "CRotX,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CRotY::check(const QCircuit& qc) const
@@ -1277,15 +1294,14 @@ QCircuit& CRotY::operator()(QCircuit& qc) const
     if (target_qubit == control_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    QCircuit roty(1);
-    roty << RotY(0, angle);
+    ControlGate(RotY::gate(angle), control_qubit, target_qubit)(qc);
 
-    return qc << ControlGate(roty, control_qubit, target_qubit);
+    return qc;
 }
 
 std::string CRotY::to_string() const
 {
-    return "RotY,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "CRotY,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CRotZ::check(const QCircuit& qc) const
@@ -1307,15 +1323,14 @@ QCircuit& CRotZ::operator()(QCircuit& qc) const
     if (target_qubit == control_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
-    QCircuit rotz(1);
-    rotz << RotZ(0, angle);
+    ControlGate(RotZ::gate(angle), control_qubit, target_qubit)(qc);
 
-    return qc << ControlGate(rotz, control_qubit, target_qubit);
+    return qc;
 }
 
 std::string CRotZ::to_string() const
 {
-    return "RotZ,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "CRotZ,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CCNot::check(const QCircuit& qc) const
@@ -1607,24 +1622,6 @@ QCircuit& ControlGate::operator()(QCircuit& qc) const
     circuit = af::matmul(gate_matrix, circuit);
 
     return qc;
-}
-
-void initialize(int argc, char** argv)
-{
-    int device = (argc > 1) ? ::std::stoi(argv[1]) : 0;
-    af::setDevice(device);
-    af::info();
-
-    x_matrix = af::array(2, 2, x_mat);
-
-    y_matrix = af::array(2, 2, y_mat);
-
-    z_matrix = af::array(2, 2, z_mat);
-
-    hadamard_matrix = af::array(2, 2, h_mat);
-
-    std::random_device rnd_device;
-    intern_rnd_engine = af::randomEngine(AF_RANDOM_ENGINE_THREEFRY, rnd_device());
 }
 
 QState X_op(const QState& state)

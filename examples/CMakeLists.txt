@@ -10,11 +10,11 @@ project(afQuantumSim-Examples
         VERSION 1.0
         LANGUAGES CXX)
 
-add_executable(example examples.cpp)
-target_link_libraries(example PRIVATE afquantum)
-
 add_executable(helloworld helloworld.cpp)
 target_link_libraries(helloworld PRIVATE afquantum)
+
+add_executable(draw_circuit draw_circuit.cpp)
+target_link_libraries(draw_circuit PRIVATE afquantum)
 
 add_executable(superposition superposition.cpp)
 target_link_libraries(superposition PRIVATE afquantum)
@@ -45,6 +45,9 @@ target_link_libraries(grover_search PRIVATE afquantum)
 
 add_executable(quantum_counting quantum_counting.cpp)
 target_link_libraries(quantum_counting PRIVATE afquantum)
+
+add_executable(shor_algorithm shor_algorithm.cpp)
+target_link_libraries(shor_algorithm PRIVATE afquantum)
 
 add_executable(quantum_teleportation quantum_teleportation.cpp)
 target_link_libraries(quantum_teleportation PRIVATE afquantum)

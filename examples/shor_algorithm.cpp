@@ -14,8 +14,9 @@
 
 #include "utils.h"
 
-#include <iostream>
 #include <algorithm>
+#include <iomanip>
+#include <iostream>
 #include <set>
 
 void quantum_shor_algorithm()
@@ -33,40 +34,40 @@ void quantum_shor_algorithm()
 
     aqs::QCircuit h1(output / 2), h2(output - (output / 2));
     for (uint32_t i = 0; i < h1.qubit_count(); ++i)
-        h1 << H(i);
+        h1 << aqs::H{i};
     for (uint32_t i = 0; i < h2.qubit_count(); ++i)
-        h2 << H(i);
-    qc << Gate{ h1, 0 };
-    qc << Gate{ h2, h1.qubit_count() };
+        h2 << aqs::H{i};
+    qc << aqs::Gate{ h1, 0 };
+    qc << aqs::Gate{ h2, h1.qubit_count() };
 
     // Create a^(2^j) mod 15 gate
     auto a2jmod15 = [](int a, int j) {
         aqs::QCircuit temp(4);
         if (a == 13 || a == 2)
         {
-            temp << Swap(0, 1);
-            temp << Swap(1, 2);
-            temp << Swap(2, 3);
+            temp << aqs::Swap(0, 1);
+            temp << aqs::Swap(1, 2);
+            temp << aqs::Swap(2, 3);
         }
         if (a == 7 || a == 8)
         {
-            temp << Swap(2, 3);
-            temp << Swap(1, 2);
-            temp << Swap(0, 1);
+            temp << aqs::Swap(2, 3);
+            temp << aqs::Swap(1, 2);
+            temp << aqs::Swap(0, 1);
         }
         if (a == 11 || a == 4)
         {
-            temp << Swap(1, 3);
-            temp << Swap(0, 2);
+            temp << aqs::Swap(1, 3);
+            temp << aqs::Swap(0, 2);
         }
         if (a == 7 || a == 11 || a == 13)
         {
             for (uint32_t j = 0; j < 4; ++j)
-                temp << X{j};
+                temp << aqs::X{j};
         }
 
         for (uint32_t i = 0; i < j; ++i)
-            temp << Gate{ temp, 0 };
+            temp << aqs::Gate{ temp, 0 };
 
         return temp;
     };
@@ -80,11 +81,11 @@ void quantum_shor_algorithm()
     for (uint32_t i = 0; i < output; ++i)
     {
         std::cout << "Adding Control_mod15 a^(2^" << i << ") Gate...\n";
-        qc << ControlGate{ a2jmod15(a, i), output - 1 - i, output, "a^(2^" + std::to_string(i) + ") mod 15" };
+        qc << aqs::ControlGate{ a2jmod15(a, i), output - 1 - i, output, "a^(2^" + std::to_string(i) + ") mod 15" };
     }
 
     std::cout << "Adding Fourier Transform Gate...\n";
-    qc << Gate(aqs::inverse_fourier_transform(output), 0, "QFT†");
+    qc << aqs::Gate(aqs::inverse_fourier_transform(output), 0, "QFT†");
 
     std::cout << "Generating Statevector...\n";
     qs.generate_statevector();
@@ -162,11 +163,6 @@ void quantum_shor_algorithm()
     }
 
     aqs::print_circuit_text_image(qc, qs);
-
-    //std::ofstream file;
-    //file.open("out.txt");
-    //file << aqs::gen_circuit_text_image(qc, qs);
-    //file.close();
 
     std::cout << "-------------------------\n\n";
 }

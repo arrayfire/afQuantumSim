@@ -17,15 +17,21 @@
 
 * Project restructuring
 
+* Restructure the implementation of the visualization of gates
+
+* Implement a rewire circuit feature
+
+* Implement the adjoint operator
+
 ### WIP
 
 * Implement elaborated examples (see [link](https://qiskit.org/textbook/ch-applications/algs_for_apps_index.html))
 
-* Implement a rewire circuit feature
-
-* Implement the adjoint operator and unitary gate
+* Implement unitary gate
 
 ### High Priority
+
+* Implement a Quantum Noise Simulator
 
 * Add a QMeasurement class to deal with profiling and measurements
 
@@ -38,8 +44,6 @@
 
 ### Low Priority
 * Implement a way to regenerate the state of individual qubits from the global state
-
-* Restructure the implementation of the visualization of gates
 
 ### Scrapped
 

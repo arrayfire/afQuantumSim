@@ -448,6 +448,17 @@ public:
      * @brief Construct a new QSimulator object
      * 
      * @param qubit_count number of qubits of the simulator
+     * @param initial_states list for the initial state for each qubit
+     * @param noise_generator the noise generator to be used
+     */
+    explicit QSimulator(uint32_t qubit_count,
+                        std::vector<QState> initial_states,
+                        const QNoise& noise_generator = QNoise{});
+
+    /**
+     * @brief Construct a new QSimulator object
+     * 
+     * @param qubit_count number of qubits of the simulator
      * @param statevector the statevector initialized to
      * @param noise_generator the noise generator to be used
      */

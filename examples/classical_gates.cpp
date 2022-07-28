@@ -68,7 +68,7 @@ void quantum_classic_xor_example()
 
 void quantum_classic_or_example()
 {
-    std::cout << "---- Example: OR Gate ----\n";
+    std::cout << "\n\n---- Example: OR Gate ----\n";
     std::cout << "OR qubits 0 and 1 and output it into qubit 3,\nOR qubits 0 and 2 and output it into qubit 4:\n\n";
     int reps = 1e4;
 
@@ -127,7 +127,7 @@ void quantum_classic_or_example()
 
 void quantum_classic_and_example()
 {
-    std::cout << "---- Example: AND Gate ----\n";
+    std::cout << "\n\n---- Example: AND Gate ----\n";
     std::cout << "AND qubits 0 and 1 and output it into qubit 3,\nOR qubits 0 and 2 and output it into qubit 4:\n\n";
 
     aqs::QCircuit qc{ 5 };
@@ -178,7 +178,7 @@ void quantum_classic_and_example()
     std::cout << "Measured: 10100 -> " << binary_string(qs.peek_measure_all(), 5) << "\n";
     //qs.profile_measure_all(reps);
 
-    //aqs::print_circuit_text_image(qc, qs);
+    aqs::print_circuit_text_image(qc, qs);
 
     std::cout << "-------------------------\n";
 }

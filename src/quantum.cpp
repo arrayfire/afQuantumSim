@@ -192,11 +192,22 @@ void QCircuit::compile()
 }
 
 QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const QNoise& noise_generator)
-    :states_(qubit_count, initial_state), statevector_{fast_pow2(qubit_count), c32}, noise_{noise_generator}, qubits_{qubit_count},
-     basis_{Basis::Z}
+    :states_(qubit_count, initial_state), statevector_{ fast_pow2(qubit_count), c32 }, noise_{ noise_generator },
+     qubits_{ qubit_count }, basis_{ Basis::Z }
 {
     generate_statevector();
 }
+
+QSimulator::QSimulator(uint32_t qubit_count, std::vector<QState> initial_states, const QNoise& noise_generator)
+    :states_(std::move(initial_states)), statevector_(fast_pow2(qubit_count), c32), noise_{ noise_generator },
+     qubits_{ qubit_count }, basis_{ Basis::Z }
+{
+    if (qubit_count != states_.size())
+        throw std::invalid_argument{ "The number of initial states must match the number of qubits in the circuit" };
+
+    generate_statevector();
+}
+
 
 QSimulator::QSimulator(uint32_t qubit_count, const af::array& statevector, const QNoise& noise_generator)
     :states_(qubit_count), noise_{noise_generator}, qubits_{qubit_count}, basis_{Basis::Z}
@@ -519,7 +530,7 @@ QCircuit& X::operator()(QCircuit& qc) const
 
 std::string X::to_string() const
 {
-    return "X," + std::to_string(target_qubit) + ";";
+    return "X,0,1:" + std::to_string(target_qubit) + ";";
 }
 
 bool Y::check(const QCircuit& qc) const
@@ -562,7 +573,7 @@ QCircuit& Y::operator()(QCircuit& qc) const
 
 std::string Y::to_string() const
 {
-    return "Y," + std::to_string(target_qubit) + ";";
+    return "Y,0,1:" + std::to_string(target_qubit) + ";";
 }
 
 bool Z::check(const QCircuit& qc) const
@@ -603,7 +614,7 @@ QCircuit& Z::operator()(QCircuit& qc) const
 
 std::string Z::to_string() const
 {
-    return "Z," + std::to_string(target_qubit) + ";";
+    return "Z,0,1:" + std::to_string(target_qubit) + ";";
 }
 
 bool RotX::check(const QCircuit& qc) const
@@ -754,7 +765,7 @@ QCircuit& H::operator()(QCircuit& qc) const
 
 std::string H::to_string() const
 {
-    return "H," + std::to_string(target_qubit) + ";";
+    return "H,0,1:" + std::to_string(target_qubit) + ";";
 }
 
 bool Phase::check(const QCircuit& qc) const
@@ -796,15 +807,15 @@ QCircuit& Phase::operator()(QCircuit& qc) const
 std::string Phase::to_string() const
 {
     if (angle == pi / 2)
-        return "S," + std::to_string(target_qubit) + ";";
+        return "S,0,1:" + std::to_string(target_qubit) + ";";
     else if (angle == -pi / 2)
-        return "S†," + std::to_string(target_qubit) + ";";
+        return "S†,0,1:" + std::to_string(target_qubit) + ";";
     else if (angle == pi / 4)
-        return "T," + std::to_string(target_qubit) + ";";
+        return "T,0,1:" + std::to_string(target_qubit) + ";";
     else if (angle == -pi / 4)
-        return "T†," + std::to_string(target_qubit) + ";";
+        return "T†,0,1:" + std::to_string(target_qubit) + ";";
     else
-        return "Phase," + std::to_string(target_qubit) + ";";
+        return "Phase,0,1:" + std::to_string(target_qubit) + ";";
 }
 
 bool Swap::check(const QCircuit& qc) const
@@ -862,7 +873,7 @@ QCircuit& Swap::operator()(QCircuit& qc) const
 
 std::string Swap::to_string() const
 {
-    return "Swap," + std::to_string(target_qubit_A) + "," + std::to_string(target_qubit_B) + ";";
+    return "Swap,0,2:" + std::to_string(target_qubit_A) + "," + std::to_string(target_qubit_B) + ";";
 }
 
 bool CX::check(const QCircuit& qc) const
@@ -914,7 +925,7 @@ QCircuit& CX::operator()(QCircuit& qc) const
 
 std::string CX::to_string() const
 {
-    return "CX,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "X,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CY::check(const QCircuit& qc) const
@@ -977,7 +988,7 @@ QCircuit& CY::operator()(QCircuit& qc) const
 
 std::string CY::to_string() const
 {
-    return "CY,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "Y,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CZ::check(const QCircuit& qc) const
@@ -1033,7 +1044,7 @@ QCircuit& CZ::operator()(QCircuit& qc) const
 
 std::string CZ::to_string() const
 {
-    return "CZ,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "Z,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CPhase::check(const QCircuit& qc) const
@@ -1090,15 +1101,15 @@ QCircuit& CPhase::operator()(QCircuit& qc) const
 std::string CPhase::to_string() const
 {
     if (angle == pi / 2)
-        return "CS,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+        return "S,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
     else if (angle == -pi / 2)
-        return "CS†,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+        return "S†,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
     else if (angle == pi / 4)
-        return "CT,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+        return "T,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
     else if (angle == -pi / 4)
-        return "CT†,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+        return "T†,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
     else
-        return "CPhase,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+        return "Phase,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CSwap::check(const QCircuit& qc) const
@@ -1166,7 +1177,7 @@ QCircuit& CSwap::operator()(QCircuit& qc) const
 
 std::string CSwap::to_string() const
 {
-    return "CSwap" + std::to_string(control_qubit) + "," + std::to_string(target_qubit_A) + 
+    return "Swap,1,2:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit_A) + 
             std::to_string(target_qubit_B) + ";";
 }
 
@@ -1243,7 +1254,7 @@ QCircuit& CH::operator()(QCircuit& qc) const
 
 std::string CH::to_string() const
 {
-    return "CH," + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "H,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CRotX::check(const QCircuit& qc) const
@@ -1272,7 +1283,7 @@ QCircuit& CRotX::operator()(QCircuit& qc) const
 
 std::string CRotX::to_string() const
 {
-    return "CRotX,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "RotX,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CRotY::check(const QCircuit& qc) const
@@ -1301,7 +1312,7 @@ QCircuit& CRotY::operator()(QCircuit& qc) const
 
 std::string CRotY::to_string() const
 {
-    return "CRotY,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "RotY,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CRotZ::check(const QCircuit& qc) const
@@ -1330,7 +1341,7 @@ QCircuit& CRotZ::operator()(QCircuit& qc) const
 
 std::string CRotZ::to_string() const
 {
-    return "CRotZ,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
+    return "RotZ,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
 }
 
 bool CCNot::check(const QCircuit& qc) const
@@ -1386,7 +1397,7 @@ QCircuit& CCNot::operator()(QCircuit& qc) const
 
 std::string CCNot::to_string() const
 {
-    return "CCX,2,1:" + std::to_string(control_qubit_A) + "," + std::to_string(control_qubit_B) + 
+    return "X,2,1:" + std::to_string(control_qubit_A) + "," + std::to_string(control_qubit_B) + 
             "," + std::to_string(target_qubit) + ";";
 }
 
@@ -1443,19 +1454,18 @@ QCircuit& Or::operator()(QCircuit& qc) const
 
 std::string Or::to_string() const
 {
-    auto top = control_qubit_A < control_qubit_B ? control_qubit_A : control_qubit_B;
-    auto bottom = control_qubit_A < control_qubit_B ? control_qubit_B : control_qubit_A;
-    if (target_qubit < top)
-        top = target_qubit;
-    if (target_qubit > bottom)
-        bottom = target_qubit;
+    std::stringstream buffer;
 
-    std::string qubits;
-    for (uint32_t i = top; i < bottom; i++)
-        qubits.append(std::to_string(i) + ",");
-    qubits.append(std::to_string(bottom) + ";");
+    buffer << "P;"
+           << "X,0,1:" << control_qubit_A << ";"
+           << "X,0,1:" << control_qubit_B << ";"
+           << "X,0,1:" << target_qubit << ";"
+           << "X,2,1:" << control_qubit_A << "," << control_qubit_B << "," << target_qubit << ";"
+           << "X,0,1:" << control_qubit_A << ";"
+           << "X,0,1:" << control_qubit_B << ";"
+           << "P;";
 
-    return "Or,0," + std::to_string(bottom - top + 1) + ":" + qubits;
+    return buffer.str();
 }
 
 static std::string update_circuit_representation(const std::string& circuit_string, uint32_t offset);
@@ -1471,18 +1481,22 @@ Gate::Gate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string n
     }
     else
     {
+        std::stringstream buff;
+
         //Naming of the circuit must not contain parsing tokens
         if (name.find_first_of(",;:") != std::string::npos)
             throw std::invalid_argument{"Name cannot contain commas, colons, nor semicolons"};
 
         //Set circuit to have no ctrl qubits
-        representation.append(name).append(",0,").append(std::to_string(circuit_.qubit_count())).append(":");
+        buff << name << ",0," << circuit_.qubit_count() << ":";
 
-        //Offset the target qubits by the target_qubit_begin
-        for (int i = 0; i < circuit_.qubit_count() - 1; ++i)
-            representation.append(std::to_string(i + target_qubit_begin_)).append(",");
-        representation.append(std::to_string(circuit_.qubit_count() - 1 + target_qubit_begin_));
-        representation.append(";");
+        //Offset all the target qubits by target_qubit_begin
+        buff << target_qubit_begin_;
+        for (uint32_t i = 1; i < circuit_.qubit_count(); ++i)
+            buff << "," << i + target_qubit_begin_;
+        buff << ";";
+
+        representation = buff.str();
     }
 }
 
@@ -1546,19 +1560,22 @@ ControlGate::ControlGate(const QCircuit& circuit_, uint32_t control_qubit_, uint
     }
     else
     {
+        std::stringstream buff;
+
         //Naming of the circuit must not contain parsing tokens
         if (name.find_first_of(",;:") != std::string::npos)
             throw std::invalid_argument{"Name cannot contain commas, colons, nor semicolons"};
 
         //Set the circuit to contain 1 ctrl qubit and append it to the front of the qubit list
-        representation.append(name).append(",1,").append(std::to_string(circuit_.qubit_count())).append(":");
-        representation.append(std::to_string(control_qubit_)).append(",");
+        buff << name << ",1," << circuit_.qubit_count() << ":" << control_qubit_ << ",";
 
         //Offset all the target qubits by target_qubit_begin
-        for (int i = 0; i < circuit_.qubit_count() - 1; ++i)
-            representation.append(std::to_string(i + target_qubit_begin_)).append(",");
-        representation.append(std::to_string(circuit_.qubit_count() - 1 + target_qubit_begin_));
-        representation.append(";");
+        buff << target_qubit_begin_;
+        for (uint32_t i = 1; i < circuit_.qubit_count(); ++i)
+            buff << "," << i + target_qubit_begin_;
+        buff << ";";
+
+        representation = buff.str();
     }
 }
 
@@ -1749,7 +1766,7 @@ std::string update_circuit_representation(const std::string& circuit_string, uin
 
 std::string update_ctrl_circuit_representation(const std::string& circuit_string, uint32_t control, uint32_t target)
 {
-    std::string out;
+    std::stringstream out;
     std::size_t current_begin = 0;
     auto current_end = circuit_string.find(";", current_begin);
 
@@ -1759,36 +1776,25 @@ std::string update_ctrl_circuit_representation(const std::string& circuit_string
         auto name_str = circuit_string.substr(current_begin, name_end - current_begin);
         if (name_end > current_end)
         {
-            out.append(circuit_string.substr(current_begin, current_end - current_begin));
-            out.append(";");
+            out << circuit_string.substr(current_begin, current_end - current_begin) << ";";
             current_begin = current_end + 1;
             current_end = circuit_string.find(";", current_begin);
             continue;
         }
-        out.append("C" + name_str).append(",");
+        out << name_str << ",";
 
-        //If matrix is fundamental add token for custom gate and set ctrl qubit count to 1
-        //Else add 1 to the ctrl qubit count to the gate
+        // Add ctrl to all qubits
         auto colon_pos = circuit_string.find(":", current_begin);
         auto qubit_pos_begin = name_end + 1;
         if (colon_pos < current_end)
         {
             auto temp = circuit_string.find(",", name_end + 1);
-            out.append(std::to_string(std::stoi(circuit_string.substr(name_end + 1, temp - name_end - 1)) + 1));
-            out.append(circuit_string.substr(temp, colon_pos - temp + 1));
+            out << std::stoi(circuit_string.substr(name_end + 1, temp - name_end - 1)) + 1
+                << circuit_string.substr(temp, colon_pos - temp + 1);
             qubit_pos_begin = colon_pos + 1;
         }
-        else
-        {
-            if (name_str == "X" || name_str == "Y" || name_str == "Z" || name_str == "Phase")
-                out.append("1,1:");
-            else if (name_str == "Swap")
-                out.append("1,2:");
-            // else if (name_str == "CX" || name_str == "CY" || name_str == "CZ" || name_str == "CPhase")
-            //     out.append("2,1:");
-        }
 
-        out.append(std::to_string(control)).append(",");
+        out << control << ",";
 
         auto qubit_pos_end = circuit_string.find(",", qubit_pos_begin);
         qubit_pos_end = qubit_pos_end > current_end ? current_end : qubit_pos_end;
@@ -1796,20 +1802,18 @@ std::string update_ctrl_circuit_representation(const std::string& circuit_string
         //Add the offset to all target qubits
         while (qubit_pos_end < current_end)
         {
-            out.append(std::to_string(std::stoi(circuit_string.substr(qubit_pos_begin, qubit_pos_end - qubit_pos_begin)) + target));
-            out.append(",");
+            out << std::stoi(circuit_string.substr(qubit_pos_begin, qubit_pos_end - qubit_pos_begin)) + target << ",";
             qubit_pos_begin = qubit_pos_end + 1;
             qubit_pos_end = circuit_string.find(",", qubit_pos_begin);
         }
         qubit_pos_end = qubit_pos_end > current_end ? current_end : qubit_pos_end;
-        out.append(std::to_string(std::stoi(circuit_string.substr(qubit_pos_begin, qubit_pos_end - qubit_pos_begin)) + target));
+        out << std::stoi(circuit_string.substr(qubit_pos_begin, qubit_pos_end - qubit_pos_begin)) + target << ";";
 
         current_begin = current_end + 1;
         current_end = circuit_string.find(";", current_begin);
-        out.append(";");
     }
 
-    return out;
+    return out.str();
 }
 
 }

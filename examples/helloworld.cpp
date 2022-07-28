@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     // Compile the circuit
     qc.compile();
 
-    // Create a 2-qubit Simulator with qubits initialize to the |1> state
+    // Create a 2-qubit Simulator with qubits initialized to the |1> state
     aqs::QSimulator qs{ 2 , aqs::QState::one() };
 
     // Simulate the circuit with the simulator

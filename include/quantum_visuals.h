@@ -57,6 +57,14 @@ namespace aqs
     std::string gen_circuit_text_image(const QCircuit& circuit, const QSimulator& simulator);
 
     /**
+     * @brief Generates a text image using the schematic with the custom AQS displayer language
+     * 
+     * @param schematic string of the schematic
+     * @return std::string utf8 text image
+     */
+    std::string gen_circuit_text_image(std::string schematic);
+
+    /**
      * @brief Prints the text image of the circuit and inititial states passed to the stdout stream
      * 
      * @param circuit circuit to display

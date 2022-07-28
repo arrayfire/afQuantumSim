@@ -6,11 +6,17 @@
  * The complete license agreement can be obtained at:
  * http://arrayfire.com/licenses/BSD-3-Clause
  ********************************************************/
+
 #include "quantum_visuals.h"
 
-#include <iostream>
+#include <algorithm>
 #include <iomanip>
+#include <iostream>
 #include <numeric>
+#include <regex>
+#include <sstream>
+#include <string>
+#include <unordered_set>
 
 namespace aqs
 {
@@ -62,534 +68,456 @@ void print_profile(const std::vector<uint32_t>& profile)
     std::cout << std::setprecision(7) << std::defaultfloat;
 }
 
-std::string parse_circuit_representation(const std::string& str)
+std::string parse_circuit_representation(std::string parse_string)
 {
-    //First part: read the number of qubits of the circuit
-    const auto count_end_pos =  str.find('\n', 0);
-    if (count_end_pos == str.npos)
-        throw std::invalid_argument{"string did not specify qubit count"};
+    std::regex info_regex{ "([0-9]+);(([0-9]+,[0-9];)+)" };
+    std::regex initial_states_regex{ "([0-9]+),([0|1]);" };
+    //std::regex gate_regex{ "([A-Za-z0-9]+),([0-9]+),([0-9]+):(([0-9]+,?)+);" }; // ASCII ONLY
+    std::regex gate_regex{ "([^,|;]+),([0-9]+),([0-9]+):(([0-9]+,?)+);" }; // UTF8
+    std::regex barrier_regex{ "[B|P];" };
+    std::regex qubit_list_regex{ "([0-9]+),?" };
 
-    const auto qubit_count_str = str.substr(0, count_end_pos);
+    // Remove whitespace
+    parse_string.erase(std::remove_if(parse_string.begin(), parse_string.end(),
+                       [](unsigned char c){
+                           return c == '\n' || c == '\r' || c == ' ' || c == '\t';
+                       }),
+                       parse_string.end());
 
-    const auto qubit_count = std::stoi(qubit_count_str);
-    if (qubit_count < 1 || qubit_count > 31)
-        throw std::invalid_argument{"invalid qubit quantity for circuit"};
+    uint32_t qubit_count = 0;
+    std::array<bool, aqs::max_qubit_count> states{};
 
-    std::vector<std::string> lines;
-    std::vector<std::size_t> lines_length;
-    lines.resize(3 * qubit_count);
-    lines_length.resize(3 * qubit_count, 0);
+    // Buffer used to store the list of all control qubits in a gate
+    std::vector<uint32_t> control_qubit_buffer;
+    control_qubit_buffer.reserve(aqs::max_qubit_count);
 
-    //Second Part: Find the initial states that the circuit's qubits are intialized
-    auto states_current_begin = count_end_pos + 1;
-    auto states_current_end = states_current_begin;
-    for (int i = 0; i < qubit_count; ++i)
+    // Buffer used to store the list of all target qubits in a gate
+    std::vector<uint32_t> target_qubit_buffer;
+    target_qubit_buffer.reserve(aqs::max_qubit_count);
+
+    // Set used to track the qubits in a list and assure uniqueness
+    std::unordered_set<uint32_t> qubit_set;
+    qubit_set.reserve(qubit_count);
+
+    std::smatch info_match{};
+    if (std::regex_search(parse_string, info_match, info_regex))
     {
-        const auto qubit_end = str.find(',', states_current_begin);
-        states_current_end = str.find(';', states_current_begin);
+        qubit_count = static_cast<uint32_t>(std::stoul(info_match[1].str()));
 
-        const auto qubit_str = str.substr(states_current_begin, qubit_end - states_current_begin);
+        if (!qubit_count)
+            throw std::out_of_range{ "Circuit must contain at least one qubit" };
 
-        const auto qubit = std::stoi(qubit_str);
-        if (qubit != i)
-            throw std::invalid_argument{"invalid qubit ordering for qubit initialization"};
+        if (qubit_count > aqs::max_qubit_count)
+            throw std::out_of_range{ "Circuit exceeds supported max qubit count" };
 
-        const auto state_str = str.substr(qubit_end + 1, states_current_end - qubit_end - 1);
+        std::string initial_states_str = info_match[2].str();
 
-        const auto state = std::stoi(state_str);
-        if (!(state == 0 || state == 1))
-            throw std::invalid_argument{"invalid initial qubit state"};
+        auto& initialized_qubits = qubit_set;
 
-        lines[i * 3    ].append("   ");
-        lines[i * 3 + 1].append("|").append(std::to_string(state)).append("⟩");
-        lines[i * 3 + 2].append("   ");
-        lines_length[i * 3    ] += 3;
-        lines_length[i * 3 + 1] += 3;
-        lines_length[i * 3 + 2] += 3;
+        std::smatch inital_states_match{};
+        while (std::regex_search(initial_states_str, inital_states_match, initial_states_regex))
+        {
+            // Find the index of qubit state being set
+            uint32_t qubit_index = static_cast<uint32_t>(std::stoul(inital_states_match[1].str()));
 
-        states_current_begin = states_current_end + 1;
+            if(initialized_qubits.count(qubit_index))
+                throw std::invalid_argument{ "Cannot set the state of the same qubit multiple times" };
+
+            initialized_qubits.insert(qubit_index);
+
+            // Store the state the qubit is in
+            auto state = static_cast<bool>(std::stoul(inital_states_match[2].str()));
+
+            if (!(state == 1 || state == 0))
+                throw std::invalid_argument{ "Invalid initial state" };
+
+            states[qubit_index] = state;
+
+            initial_states_str = inital_states_match.suffix();
+        }
+
+        initialized_qubits.clear();
     }
 
-    if (str.at(states_current_begin) != '\n')
-        throw std::invalid_argument{"expected to contain newline separator at given position"};
+    parse_string = info_match.suffix();
 
-    auto current_circuit_length = 3;
-    auto gates_current_begin = states_current_begin + 1;
-    auto gates_current_end = gates_current_begin;
+    std::vector<std::stringstream> lines{};
+    std::vector<std::size_t> lines_length{};
+
+    const std::size_t line_count = qubit_count * 3;
+    lines.resize(line_count);
+    lines_length.resize(qubit_count, 0);
+
+    for (uint32_t i = 0; i < qubit_count; ++i)
+    {
+        lines[i * 3    ] << "   ";
+        lines[i * 3 + 1] << "|" << (int)states[i] << "⟩";
+        lines[i * 3 + 2] << "   ";
+
+        lines_length[i] += 3;
+    }
+
+    std::size_t current_circuit_length = 3;
 
     //Fills all the lines until all have the same width, adds tails if defined
-    auto fill_circuit = [&lines, &lines_length, qubit_count, &current_circuit_length](std::string center = "", std::string sides = "", int tail_len = 0) {
-        for (int i = 0; i < qubit_count; ++i)
+    auto fill_circuit =
+        [&lines, &lines_length, qubit_count, &current_circuit_length]
+        (std::string center = "", std::string sides = "", std::size_t tail_len = 0)
+    {
+        for (uint32_t i = 0; i < qubit_count; ++i)
         {
-            lines[i * 3    ].append(current_circuit_length - lines_length[i * 3], ' ').append(sides);
-            lines[i * 3 + 1].append(repeat(current_circuit_length - lines_length[i * 3 + 1], "─")).append(center);
-            lines[i * 3 + 2].append(current_circuit_length - lines_length[i * 3 + 2], ' ').append(sides);
-            lines_length[i * 3    ] = current_circuit_length + tail_len;
-            lines_length[i * 3 + 1] = current_circuit_length + tail_len;
-            lines_length[i * 3 + 2] = current_circuit_length + tail_len;
+            lines[i * 3    ] << repeat(current_circuit_length - lines_length[i], " ") << sides;
+            lines[i * 3 + 1] << repeat(current_circuit_length - lines_length[i], "─") << center;
+            lines[i * 3 + 2] << repeat(current_circuit_length - lines_length[i], " ") << sides;
+
+            lines_length[i] = current_circuit_length + tail_len;
         }
+
         current_circuit_length += tail_len;
     };
 
     //Fills all the lines in the range until all have the same width
-    auto fill_range = [&lines, &lines_length, qubit_count, &current_circuit_length](int begin, int end) {
-        int max = 0;
-        for (int i = begin; i < end; ++i)
-            max = (lines_length[i * 3] > max ? lines_length[i * 3] : max);
+    auto fill_qubit_range =
+        [&lines, &lines_length, qubit_count, &current_circuit_length]
+        (uint32_t first_qubit, uint32_t last_qubit)
+    {
+        std::size_t max_line_length = 0;
 
-        for (int i = begin; i < end; ++i)
+        for (std::size_t i = first_qubit; i <= last_qubit; ++i)
+            max_line_length = (lines_length[i] > max_line_length ? lines_length[i] : max_line_length);
+
+        for (std::size_t i = first_qubit; i <= last_qubit; ++i)
         {
-            lines[i * 3    ].append(max - lines_length[i * 3], ' ');
-            lines[i * 3 + 1].append(repeat(max - lines_length[i * 3 + 1], "─"));
-            lines[i * 3 + 2].append(max - lines_length[i * 3 + 2], ' ');
-            lines_length[i * 3    ] = max;
-            lines_length[i * 3 + 1] = max;
-            lines_length[i * 3 + 2] = max;
+            auto line = i * 3;
+            lines[line    ] << repeat(max_line_length - lines_length[i], " ");
+            lines[line + 1] << repeat(max_line_length - lines_length[i], "─");
+            lines[line + 2] << repeat(max_line_length - lines_length[i], " ");
+
+            lines_length[i] = max_line_length;
         }
+
+        current_circuit_length = (current_circuit_length < max_line_length ? max_line_length : current_circuit_length);
     };
 
-    //Third Part: Parse and generate the circuit from the gates
-    while(gates_current_begin != str.length())
+    while (!parse_string.empty())
     {
-        auto gate_name_end = str.find(',', gates_current_begin);
-        gates_current_end = str.find(';', gates_current_begin);
-        if (gate_name_end > gates_current_end)
-            gate_name_end = gates_current_end;
-        std::string gate_name = str.substr(gates_current_begin, gate_name_end - gates_current_begin);
-        auto control_qubit_begin = 0;
-        auto control_qubit_count = 0;
-        auto target_qubit_begin = 0;
-        auto target_qubit_count = 0;
-        
-        //If a barrier is detected
-        if (gate_name == "B")
+        std::smatch gate_match{};
+
+        if (std::regex_search(parse_string, gate_match, barrier_regex) && gate_match.prefix().str().empty())
         {
-            fill_circuit("▒─", "▒ ", 2);
-            gates_current_begin = gates_current_end + 1;
-            continue;
-        }
-        //If padding is detected
-        else if (gate_name == "P")
-        {
-            fill_circuit();
-            gates_current_begin = gates_current_end + 1;
-            continue;
-        }
-        //If any fundamental 1-qubit gate is detected
-        else if (gate_name == "H" || gate_name == "X" || gate_name == "Y" || gate_name == "Z" || gate_name == "Phase" ||
-                 gate_name == "T" || gate_name == "T†" || gate_name == "S" || gate_name == "S†")
-        {
-            const auto qubit_end = gates_current_end;
-            const auto qubit_str = str.substr(gate_name_end + 1, qubit_end - gate_name_end);
-            const auto qubit = std::stoi(qubit_str);
-            target_qubit_begin = qubit;
-            target_qubit_count = 1;
-        }
-        //If a Swap gate is detected
-        else if (gate_name == "Swap")
-        {
-            const auto trgt_qubit1_end = str.find(',', gate_name_end + 1);
-            const auto trgt_qubit1_str = str.substr(gate_name_end + 1, trgt_qubit1_end - gate_name_end);
-            const auto trgt_qubit2_end = gates_current_end;
-            const auto trgt_qubit2_str = str.substr(trgt_qubit1_end + 1, trgt_qubit2_end - trgt_qubit1_end);
-            int qubit1 = std::stoi(trgt_qubit1_str);
-            int qubit2 = std::stoi(trgt_qubit2_str);
-            int top = qubit1 < qubit2 ? qubit1 : qubit2;
-            int bottom = qubit1 < qubit2 ? qubit2 : qubit1;
-
-            if (qubit1 > 31 || qubit2 > 31 || qubit1 < 0 || qubit2 < 0)
-                throw std::invalid_argument{"Invalid target swap qubits"};
-
-            fill_range(top, bottom + 1);
-
-            lines[top * 3    ].append("   ");
-            lines[top * 3 + 1].append("─╳─");
-            lines[top * 3 + 2].append(" │ ");
-            lines_length[top * 3    ] += 3;
-            lines_length[top * 3 + 1] += 3;
-            lines_length[top * 3 + 2] += 3;
-
-            lines[bottom * 3    ].append(" │ ");
-            lines[bottom * 3 + 1].append("─╳─");
-            lines[bottom * 3 + 2].append("   ");
-            lines_length[bottom * 3    ] += 3;
-            lines_length[bottom * 3 + 1] += 3;
-            lines_length[bottom * 3 + 2] += 3;
-            for (int i = top + 1; i < bottom; ++i)
-            {
-                lines[i * 3    ].append(" │ ");
-                lines[i * 3 + 1].append("─┼─");
-                lines[i * 3 + 2].append(" │ ");
-                lines_length[i * 3    ] += 3;
-                lines_length[i * 3 + 1] += 3;
-                lines_length[i * 3 + 2] += 3;
-            }
-
-            if (lines_length[top * 3] > current_circuit_length)
-                current_circuit_length = lines_length[top * 3];
-
-            gates_current_begin = gates_current_end + 1;
-            continue;
-        }
-        //If a Control-Swap is detected
-        else if (gate_name == "CSwap")
-        {
-            const auto ctrl_qubit_end = str.find(',', gate_name_end + 1);
-            const auto ctrl_qubit_str = str.substr(gate_name_end + 1, ctrl_qubit_end - gate_name_end);
-            const auto trgt_qubit1_end = str.find(',', ctrl_qubit_end + 1);
-            const auto trgt_qubit1_str = str.substr(ctrl_qubit_end + 1, trgt_qubit1_end - ctrl_qubit_end);
-            const auto trgt_qubit2_end = gates_current_end;
-            const auto trgt_qubit2_str = str.substr(trgt_qubit1_end + 1, trgt_qubit2_end - trgt_qubit1_end);
-            int ctrl = std::stoi(ctrl_qubit_str);
-            int qubit1 = std::stoi(trgt_qubit1_str);
-            int qubit2 = std::stoi(trgt_qubit2_str);
-            int top = qubit1 < qubit2 ? qubit1 : qubit2;
-            int bottom = qubit1 < qubit2 ? qubit2 : qubit1;
-
-            if (ctrl < 0 || ctrl > 31)
-                throw std::invalid_argument{"Invalid control qubit"};
-            if (qubit1 > 31 || qubit2 > 31 || qubit1 < 0 || qubit2 < 0)
-                throw std::invalid_argument{"Invalid target swap qubits"};
-
-            if (ctrl < top)
-            {
-                fill_range(ctrl, bottom + 1);
-                lines[top * 3    ].append(" │ ");
-                lines[bottom * 3 + 2].append("   ");
-                lines[ctrl * 3].append("   ");
-                lines[ctrl * 3 + 2].append(" │ ");
-                for (int i = ctrl + 1; i < top; ++i)
-                {
-                    lines[i * 3    ].append(" │ ");
-                    lines[i * 3 + 1].append("─┼─");
-                    lines[i * 3 + 2].append(" │ ");
-                    lines_length[i * 3    ] += 3;
-                    lines_length[i * 3 + 1] += 3;
-                    lines_length[i * 3 + 2] += 3;
-                }
-            }
-            else if (ctrl > bottom)
-            {
-                fill_range(top, ctrl + 1);
-                lines[top * 3    ].append("   ");
-                lines[bottom * 3 + 2].append(" │ ");
-                lines[ctrl * 3].append(" │ ");
-                lines[ctrl * 3 + 2].append("   ");
-                for (int i = bottom + 1; i < ctrl; ++i)
-                {
-                    lines[i * 3    ].append(" │ ");
-                    lines[i * 3 + 1].append("─┼─");
-                    lines[i * 3 + 2].append(" │ ");
-                    lines_length[i * 3    ] += 3;
-                    lines_length[i * 3 + 1] += 3;
-                    lines_length[i * 3 + 2] += 3;
-                }
-            }
+            if (gate_match.str() == "B;")
+                fill_circuit("▒─", "▒ ", 2);
+            else if (gate_match.str() == "P;")
+                fill_circuit();
             else
-                throw std::invalid_argument{"Given Control qubit position for swap gate not supported"};
+                throw std::runtime_error{ "Unexpected error" };
+        }
+        else if (std::regex_search(parse_string, gate_match, gate_regex))
+        {
+            std::string gate_name = gate_match[1];
+            uint32_t control_qubit_count = static_cast<uint32_t>(std::stoul(gate_match[2]));
+            uint32_t target_qubit_count = static_cast<uint32_t>(std::stoul(gate_match[3]));
+            std::string qubit_list_str = gate_match[4];
+            std::smatch qubit_list_match{};
 
-            lines[ctrl * 3 + 1].append("─█─");
-            lines[top * 3 + 1].append("─╳─");
-            lines[top * 3 + 2].append(" │ ");
-            lines_length[top * 3    ] += 3;
-            lines_length[top * 3 + 1] += 3;
-            lines_length[top * 3 + 2] += 3;
-
-            lines_length[ctrl * 3    ] += 3;
-            lines_length[ctrl * 3 + 1] += 3;
-            lines_length[ctrl * 3 + 2] += 3;
-
-            lines[bottom * 3    ].append(" │ ");
-            lines[bottom * 3 + 1].append("─╳─");
-            lines_length[bottom * 3    ] += 3;
-            lines_length[bottom * 3 + 1] += 3;
-            lines_length[bottom * 3 + 2] += 3;
-            for (int i = top + 1; i < bottom; ++i)
+            while (std::regex_search(qubit_list_str, qubit_list_match, qubit_list_regex))
             {
-                lines[i * 3    ].append(" │ ");
-                lines[i * 3 + 1].append("─┼─");
-                lines[i * 3 + 2].append(" │ ");
-                lines_length[i * 3    ] += 3;
-                lines_length[i * 3 + 1] += 3;
-                lines_length[i * 3 + 2] += 3;
+                uint32_t qubit = static_cast<uint32_t>(std::stoul(qubit_list_match[1]));
+
+                if (qubit >= qubit_count)
+                    throw std::out_of_range{ "Qubit index is outside the circuit dimensions" };
+
+                if (qubit_set.count(qubit))
+                    throw std::invalid_argument{ "Invalid gate registers: cannot have the same qubit as multiple gate registers" };
+
+                qubit_set.insert(qubit);
+
+                if (control_qubit_buffer.size() < control_qubit_count)
+                    control_qubit_buffer.push_back(qubit);
+                else
+                    target_qubit_buffer.push_back(qubit);
+
+                qubit_list_str = qubit_list_match.suffix();
             }
 
-            if (lines_length[top * 3] > current_circuit_length)
-                current_circuit_length = lines_length[top * 3];
+            // Checking qubit lists
+            if (control_qubit_buffer.size() != control_qubit_count ||
+                target_qubit_buffer.size() != target_qubit_count)
+                throw std::invalid_argument{ "Number of control and target qubits must match gate declaration" };
 
-            gates_current_begin = gates_current_end + 1;
-            continue;
-        }
-        //Any other gate is detected
-        else
-        {
-            //Read the number of control qubits of the gate
-            const auto control_qubit_count_end = str.find(',', gate_name_end + 1);
-            const auto control_qubit_count_str = str.substr(gate_name_end + 1, control_qubit_count_end - gate_name_end + 1);
-            control_qubit_count = std::stoi(control_qubit_count_str);
+            // General Constraints
+            if (!target_qubit_buffer.size())
+                throw std::invalid_argument{ "Gate must contain at least one target qubit" };
 
-            //Read the number of target qubits of the gate
-            const auto target_qubit_count_end = str.find(':', control_qubit_count_end + 1);
-            const auto target_qubit_count_str = str.substr(control_qubit_count_end + 1, target_qubit_count_end - control_qubit_count_end - 1);
-            target_qubit_count = std::stoi(target_qubit_count_str);
-            
-            if (target_qubit_count < 1)
-                throw std::invalid_argument{"Custom gate must contain at least one target qubit"};
-            if (target_qubit_count > 31)
-                throw std::invalid_argument{"Invalid target qubit count"};
-            if (control_qubit_count < 0 || target_qubit_count > 31)
-                throw std::invalid_argument{"Invalid control qubit count"};
+            // Special Gate Contraints
+            if (gate_name == "Swap" && target_qubit_buffer.size() != 2)
+                throw std::invalid_argument{ "Number of target qubits for a Swap gate must be 2" };
 
-            auto ctrl_qubit_temp_begin = target_qubit_count_end + 1;
-            auto ctrl_qubit_temp_end = str.find(',', ctrl_qubit_temp_begin);
-            if (control_qubit_count > 0)
-            {
-                auto ctrl_qubit_temp_str = str.substr(ctrl_qubit_temp_begin, ctrl_qubit_temp_end - ctrl_qubit_temp_begin);
-                control_qubit_begin = std::stoi(ctrl_qubit_temp_str);
-                for (int i = 1; i < control_qubit_count; ++i)
+            std::sort(control_qubit_buffer.begin(), control_qubit_buffer.end());
+            std::sort(target_qubit_buffer.begin(), target_qubit_buffer.end());
+
+            bool is_control_first = false;
+            bool is_control_last = false;
+
+            const uint32_t first_qubit = [&](){
+                if (!control_qubit_buffer.empty())
                 {
-                    ctrl_qubit_temp_begin = ctrl_qubit_temp_end + 1;
-                    ctrl_qubit_temp_end = str.find(',', ctrl_qubit_temp_begin);
-                    auto ctrl_qubit = std::stoi(str.substr(ctrl_qubit_temp_begin, ctrl_qubit_temp_end - ctrl_qubit_temp_begin));
-                    if (i + control_qubit_begin != ctrl_qubit)
-                        throw std::invalid_argument{"Non-concurrent control qubits is not supported"};
+                    is_control_first = target_qubit_buffer.front() > control_qubit_buffer.front();
+                    return is_control_first ? control_qubit_buffer.front() : target_qubit_buffer.front();
                 }
-            }
-
-            auto trgt_qubit_temp_begin = control_qubit_count != 0 ? ctrl_qubit_temp_end + 1 : ctrl_qubit_temp_begin;
-            auto trgt_qubit_temp_end = control_qubit_count != 0 ? str.find(',', trgt_qubit_temp_begin) : ctrl_qubit_temp_end;
-            target_qubit_begin = std::stoi(str.substr(trgt_qubit_temp_begin, trgt_qubit_temp_end - ctrl_qubit_temp_begin));
-            for (int i = 1; i < target_qubit_count; ++i)
-            {
-                trgt_qubit_temp_begin = trgt_qubit_temp_end + 1;
-                trgt_qubit_temp_end = str.find((i != target_qubit_count - 1) ? ',' : ';' , trgt_qubit_temp_begin);
-                auto trgt_qubit = std::stoi(str.substr(trgt_qubit_temp_begin, trgt_qubit_temp_end - trgt_qubit_temp_begin));
-                if (i + target_qubit_begin != trgt_qubit)
-                    throw std::invalid_argument{"Non-concurrent target qubits is not supported"};
-            }
-        }
-
-        const std::string padding = " ";
-
-        //Remove C (control gate mark)
-        for (int i = 0; i < control_qubit_count; ++i)
-            if (gate_name[0] == 'C') gate_name.erase(0, 1);
-        const std::string gate_str = padding + gate_name + padding;
-        const std::size_t gate_strlen = utf8str_len(gate_str);
-        const std::size_t gate_strmid = (gate_strlen + 1) / 2 - 1;
-        const std::size_t offset = 3 + gate_strlen + 3;
-
-        //Deal with circuits with control qubits normally
-        if (control_qubit_count == 0)
-        {
-            fill_range(target_qubit_begin, target_qubit_begin + target_qubit_count);
-
-            lines[target_qubit_begin * 3    ].append("  ┌").append(repeat(gate_strlen, "─")).append("┐  ");
-            lines[target_qubit_begin * 3 + 1].append("──┤").append(gate_str).append("├──");
-
-            lines_length[target_qubit_begin * 3    ] += offset;
-            lines_length[target_qubit_begin * 3 + 1] += offset;
-            if (target_qubit_count > 1)
-            {
-                lines[target_qubit_begin * 3 + 2                           ].append("  │").append(gate_strlen, ' ').append("│  ");
-                lines[(target_qubit_begin + target_qubit_count - 1) * 3    ].append("  │").append(gate_strlen, ' ').append("│  ");
-                lines[(target_qubit_begin + target_qubit_count - 1) * 3 + 1].append("──┤").append(gate_strlen, ' ').append("├──");
-                lines_length[target_qubit_begin * 3 + 2 ] += offset;
-                lines_length[(target_qubit_begin + target_qubit_count - 1) * 3   ] += offset;
-                lines_length[(target_qubit_begin + target_qubit_count - 1) * 3 + 1] += offset;
-            }
-            lines[(target_qubit_begin + target_qubit_count - 1) * 3 + 2].append("  └").append(repeat(gate_strlen, "─")).append("┘  ");
-            lines_length[(target_qubit_begin + target_qubit_count - 1) * 3 + 2] += offset;
-
-            for (int i = target_qubit_begin + 1; i < target_qubit_begin + target_qubit_count - 1; ++i)
-            {
-                lines[i * 3    ].append("  │").append(gate_strlen, ' ').append("│  ");
-                lines[i * 3 + 1].append("──┤").append(gate_strlen, ' ').append("├──");
-                lines[i * 3 + 2].append("  │").append(gate_strlen, ' ').append("│  ");
-                lines_length[i * 3    ] += offset;
-                lines_length[i * 3 + 1] += offset;
-                lines_length[i * 3 + 2] += offset;
-            }
-        }
-        //Manage adding control qubits
-        else
-        {
-            //Pad the complete circuit
-            fill_circuit();
-
-            lines[target_qubit_begin * 3 + 1].append("──┤").append(gate_str).append("├──");
-            lines[control_qubit_begin * 3 + 1].append(repeat(gate_strmid + 3, "─")).append("█").append(repeat(gate_strlen - gate_strmid + 2, "─"));
-            if (control_qubit_count > 1)
-                lines[(control_qubit_begin + control_qubit_count - 1) * 3 + 1].append(
-                    repeat(gate_strmid + 3, "─")).append("█").append(repeat(gate_strlen - gate_strmid + 2, "─"));
-
-            lines[target_qubit_begin * 3    ].append("  ┌");
-            lines[(target_qubit_begin + target_qubit_count - 1) * 3 + 2].append("  └");
-            lines[control_qubit_begin * 3    ].append(gate_strmid + 3, ' ');
-            lines[control_qubit_begin * 3 + 2].append(gate_strmid + 3, ' ');
-            if (control_qubit_count > 1)
-            {
-                lines[(control_qubit_begin + control_qubit_count - 1) * 3    ].append(gate_strmid + 3, ' ');
-                lines[(control_qubit_begin + control_qubit_count - 1) * 3 + 2].append(gate_strmid + 3, ' ');
-            }
-
-            if (control_qubit_begin < target_qubit_begin)
-            {
-                lines[control_qubit_begin * 3 + 2].append("│");
-                lines[target_qubit_begin * 3].append(repeat(gate_strmid, "─")).append("┴").append(
-                    repeat(gate_strlen - gate_strmid - 1, "─"));
-                lines[(target_qubit_begin + target_qubit_count - 1) * 3 + 2].append(repeat(gate_strlen, "─"));
-                if (control_qubit_count > 1)
+                else
                 {
-                    lines[(control_qubit_begin + control_qubit_count - 1) * 3    ].append("│");
-                    lines[(control_qubit_begin + control_qubit_count - 1) * 3 + 2].append("│");
-                    lines[(control_qubit_begin + control_qubit_count - 1) * 3    ].append(gate_strlen - gate_strmid + 2, ' ');
-                    lines[(control_qubit_begin + control_qubit_count - 1) * 3 + 2].append(gate_strlen - gate_strmid + 2, ' ');
+                    is_control_first = false;
+                    return target_qubit_buffer.front();
                 }
-                lines[control_qubit_begin * 3    ].append(gate_strlen - gate_strmid + 3, ' ');
-                lines[control_qubit_begin * 3 + 2].append(gate_strlen - gate_strmid + 2, ' ');
+            }();
+
+            const uint32_t last_qubit = [&](){
+                if (!control_qubit_buffer.empty())
+                {
+                    is_control_last = target_qubit_buffer.back() < control_qubit_buffer.back();
+                    return is_control_last ? control_qubit_buffer.back() : target_qubit_buffer.back();
+                }
+                else
+                {
+                    is_control_last = false;
+                    return target_qubit_buffer.back();
+                }
+            }();
+
+            const std::string pad = " ";
+            const std::string gate_str = pad + gate_name + pad;
+            const std::size_t strlen = utf8str_len(gate_str);
+            const std::size_t strmid = (strlen + 1) / 2 - 1;
+
+            std::size_t len = 1;
+            std::size_t mid = 1;
+
+            if (gate_name == "Swap")
+            {
+                len = 3;
+                mid = 1;
             }
             else
             {
-                lines[target_qubit_begin * 3].append(repeat(gate_strlen, "─"));
-                lines[(target_qubit_begin + target_qubit_count - 1) * 3 + 2].append(repeat(gate_strmid, "─")).append("┬").append(
-                    repeat(gate_strlen - gate_strmid - 1, "─"));
-                lines[control_qubit_begin * 3    ].append("│");
+                len = strlen + 6;
+                mid = strmid + 3;
+            }
 
-                if (control_qubit_count > 1)
+            // Pad the lines in the range of the gate
+            fill_qubit_range(first_qubit, last_qubit);
+
+            uint32_t current_ctrl_index = control_qubit_buffer.empty() ? -1 : 0;
+            uint32_t current_trgt_index = 0;
+
+            uint32_t current_qubit = first_qubit;
+            uint32_t previous_qubit = first_qubit;
+
+            // Add marks until all target and control marks have been added
+            while (current_ctrl_index < control_qubit_buffer.size() || current_trgt_index < target_qubit_buffer.size())
+            {
+                // Find the next current qubit in descending order
+                if (current_ctrl_index < control_qubit_buffer.size())
                 {
-                    lines[(control_qubit_begin + control_qubit_count - 1) * 3    ].append("│");
-                    lines[control_qubit_begin * 3 + 2].append("│");
-                    lines[(control_qubit_begin + control_qubit_count - 1) * 3    ].append(gate_strlen - gate_strmid + 2, ' ');
-                    lines[control_qubit_begin * 3 + 2].append(gate_strlen - gate_strmid + 2, ' ');
+                    if (current_trgt_index < target_qubit_buffer.size())
+                    {
+                        current_qubit = target_qubit_buffer[current_trgt_index] < control_qubit_buffer[current_ctrl_index] ?
+                                        target_qubit_buffer[current_trgt_index] : control_qubit_buffer[current_ctrl_index];
+                    }
+                    else
+                    {
+                        current_qubit = control_qubit_buffer[current_ctrl_index];
+                    }
                 }
-                lines[(control_qubit_begin + control_qubit_count - 1) * 3 + 2].append(gate_strlen - gate_strmid + 3, ' ');
-                lines[control_qubit_begin * 3    ].append(gate_strlen - gate_strmid + 2, ' ');
-            }
-            
-            lines[target_qubit_begin * 3    ].append("┐  ");
-            lines[(target_qubit_begin + target_qubit_count - 1) * 3 + 2].append("┘  ");
+                else
+                {
+                    current_qubit = target_qubit_buffer[current_trgt_index];   
+                }
 
-            lines_length[target_qubit_begin * 3    ] += offset;
-            lines_length[target_qubit_begin * 3 + 1] += offset;
-            lines_length[(target_qubit_begin + target_qubit_count - 1) * 3 + 2] += offset;
-    
-            lines_length[control_qubit_begin * 3    ] += offset;
-            lines_length[control_qubit_begin * 3 + 1] += offset;
-            lines_length[control_qubit_begin * 3 + 2] += offset;
+                // Fill sections in between the control qubits and gates
+                for (uint32_t i = previous_qubit + 1; i < current_qubit; ++i)
+                {
+                    lines[i * 3    ] << repeat(mid, " ") << "│" << repeat(len - mid - 1, " ");
+                    lines[i * 3 + 1] << repeat(mid, "─") << "┼" << repeat(len - mid - 1, "─");
+                    lines[i * 3 + 2] << repeat(mid, " ") << "│" << repeat(len - mid - 1, " ");
 
-            if (control_qubit_count > 1)
-            {
-                lines_length[(control_qubit_begin + control_qubit_count - 1) * 3    ] += offset;
-                lines_length[(control_qubit_begin + control_qubit_count - 1) * 3 + 1] += offset;
-                lines_length[(control_qubit_begin + control_qubit_count - 1) * 3 + 2] += offset;
+                    lines_length[i] += len;
+                }
+
+                // Handle adding marks for the target qubit
+                if (target_qubit_buffer[current_trgt_index] == current_qubit)
+                {
+                    // Special case for SWAP gate
+                    if (gate_name == "Swap")
+                    {
+                        uint32_t top_swap = target_qubit_buffer[0];
+                        uint32_t bottom_swap = target_qubit_buffer[1];
+
+                        if (top_swap > bottom_swap)
+                            std::swap(top_swap, bottom_swap);
+
+                        if (top_swap == current_qubit)
+                        {
+                            // Handle cases with control qubits
+                            if (is_control_first)
+                                lines[top_swap * 3] << " │ ";
+                            else
+                                lines[top_swap * 3] << "   ";
+
+                            lines[top_swap * 3 + 1] << "─╳─";
+                            lines[top_swap * 3 + 2] << " │ ";
+                        }
+                        else if (bottom_swap == current_qubit)
+                        {
+                            lines[bottom_swap * 3    ] << " │ ";
+                            lines[bottom_swap * 3 + 1] << "─╳─";
+
+                            // Handle cases with control qubits
+                            if (is_control_last)
+                                lines[bottom_swap * 3 + 2] << " │ ";
+                            else
+                                lines[bottom_swap * 3 + 2] << "   ";
+                        }
+                        else
+                            throw std::runtime_error{ "Unexpected error" };
+
+                        ++current_trgt_index;
+                        lines_length[current_qubit] += len;
+                        previous_qubit = current_qubit;
+                    }
+                    // Handle general gates
+                    else
+                    {
+                        const uint32_t begin = current_qubit;
+                        uint32_t count = 1;
+
+                        // Find if there are multiple multi-qubit target qubit gates
+                        for (uint32_t i = current_trgt_index + 1;
+                            i < target_qubit_buffer.size() && target_qubit_buffer[i] == target_qubit_buffer[i - 1] + 1;
+                            ++i)
+                                ++count;
+
+                        current_trgt_index += count;
+
+                        // Top qubit marks
+                        if (!is_control_first && current_qubit == target_qubit_buffer.front())
+                            lines[begin * 3] << "  ┌" << repeat(strlen, "─") << "┐  ";
+                        else
+                            lines[begin * 3] << "  ┌" << repeat(strmid, "─") << "┴"
+                                                << repeat(strlen - strmid - 1, "─") << "┐  ";
+
+                        lines[begin * 3 + 1] << "──┤" << gate_str << "├──";
+
+                        // Mid qubit marks
+                        for (uint32_t i = begin + 1; i < begin + count - 1; ++i)
+                        {
+                            lines[i * 3    ] << "  │" << repeat(strlen, " ") << "│  ";
+                            lines[i * 3 + 1] << "──┤" << repeat(strlen, " ") << "├──";
+                            lines[i * 3 + 2] << "  │" << repeat(strlen, " ") << "│  ";
+                        }
+
+                        // Bottom qubit marks
+                        if (count > 1)
+                        {
+                            lines[(begin            ) * 3 + 2] << "  │" << repeat(strlen, " ") << "│  ";
+                            lines[(begin + count - 1) * 3    ] << "  │" << repeat(strlen, " ") << "│  ";
+                            lines[(begin + count - 1) * 3 + 1] << "──┤" << repeat(strlen, " ") << "├──";
+                        }
+                        if (!is_control_last && current_qubit + count - 1 == target_qubit_buffer.back())
+                            lines[(begin + count - 1) * 3 + 2] << "  └" << repeat(strlen, "─") << "┘  ";
+                        else
+                            lines[(begin + count - 1) * 3 + 2] << "  └" << repeat(strmid, "─") << "┬"
+                                                                << repeat(strlen - strmid - 1, "─") << "┘  ";
+
+                        for (uint32_t i = begin; i < begin + count; ++i)
+                            lines_length[i] += len;
+
+                        previous_qubit = begin + count - 1;
+                    }
+                }
+                else
+                {
+                    // If control qubit is the first qubit in the gate
+                    if (is_control_first && current_qubit == control_qubit_buffer.front())
+                    {
+                        lines[current_qubit * 3.   ] << repeat(len, " ");
+                        lines[current_qubit * 3 + 1] << repeat(mid, "─") << "█" << repeat(len - mid - 1, "─");
+                        lines[current_qubit * 3 + 2] << repeat(mid, " ") << "│" << repeat(len - mid - 1, " ");
+                    }
+                    // If control qubit is the last qubit in the gate
+                    else if (is_control_last && current_qubit == control_qubit_buffer.back())
+                    {
+                        lines[current_qubit * 3    ] << repeat(mid, " ") << "│" << repeat(len - mid - 1, " ");
+                        lines[current_qubit * 3 + 1] << repeat(mid, "─") << "█" << repeat(len - mid - 1, "─");
+                        lines[current_qubit * 3 + 2] << repeat(len, " ");
+                    }
+                    // Control qubits in between
+                    else
+                    {
+                        lines[current_qubit * 3    ] << repeat(mid, " ") << "│" << repeat(len - mid - 1, " ");
+                        lines[current_qubit * 3 + 1] << repeat(mid, "─") << "█" << repeat(len - mid - 1, "─");
+                        lines[current_qubit * 3 + 2] << repeat(mid, " ") << "│" << repeat(len - mid - 1, " ");
+                    }
+
+                    lines_length[current_qubit] += len;
+                    ++current_ctrl_index;
+
+                    previous_qubit = current_qubit;
+                }
             }
 
-            for (int i = control_qubit_begin + 1; i < control_qubit_begin + control_qubit_count - 1; ++i)
-            {
-                lines[i * 3    ].append(gate_strmid + 3, ' ').append("│").append(gate_strlen - gate_strmid + 2, ' ');
-                lines[i * 3 + 1].append(repeat(gate_strmid + 3, "─")).append("█").append(repeat(gate_strlen - gate_strmid + 2, "─"));
-                lines[i * 3 + 2].append(gate_strmid + 3, ' ').append("│").append(gate_strlen - gate_strmid + 2, ' ');
-                lines_length[i * 3    ] += offset;
-                lines_length[i * 3 + 1] += offset;
-                lines_length[i * 3 + 2] += offset;
-            }
+            // Update the circuit length if the line length is larger
+            if (lines_length[first_qubit] > current_circuit_length)
+                current_circuit_length = lines_length[first_qubit];
 
-            if (target_qubit_count > 1)
-            {
-                lines[target_qubit_begin * 3 + 2                           ].append("  │").append(gate_strlen, ' ').append("│  ");
-                lines[(target_qubit_begin + target_qubit_count - 1) * 3    ].append("  │").append(gate_strlen, ' ').append("│  ");
-                lines[(target_qubit_begin + target_qubit_count - 1) * 3 + 1].append("──┤").append(gate_strlen, ' ').append("├──");
-                lines_length[target_qubit_begin * 3 + 2 ] += offset;
-                lines_length[(target_qubit_begin + target_qubit_count - 1) * 3   ] += offset;
-                lines_length[(target_qubit_begin + target_qubit_count - 1) * 3 + 1] += offset;
-            }
-
-            for (int i = target_qubit_begin + 1; i < target_qubit_begin + target_qubit_count - 1; ++i)
-            {
-                lines[i * 3    ].append("  │").append(gate_strlen, ' ').append("│  ");
-                lines[i * 3 + 1].append("──┤").append(gate_strlen, ' ').append("├──");
-                lines[i * 3 + 2].append("  │").append(gate_strlen, ' ').append("│  ");
-                lines_length[i * 3    ] += offset;
-                lines_length[i * 3 + 1] += offset;
-                lines_length[i * 3 + 2] += offset;
-            }
-
-            // Fill sections in between the control qubits and gates
-            int begin_inter = control_qubit_begin < target_qubit_begin ? control_qubit_begin + control_qubit_count : target_qubit_begin + target_qubit_count;
-            int end_inter = control_qubit_begin < target_qubit_begin ? target_qubit_begin : control_qubit_begin;
-            for (int i = begin_inter; i < end_inter; ++i)
-            {
-                lines[i * 3    ].append(gate_strmid + 3, ' ').append("│").append(gate_strlen - gate_strmid + 2, ' ');
-                lines[i * 3 + 1].append(repeat(gate_strmid + 3, "─")).append("┼").append(repeat(gate_strlen - gate_strmid + 2, "─"));
-                lines[i * 3 + 2].append(gate_strmid + 3, ' ').append("│").append(gate_strlen - gate_strmid + 2, ' ');
-                lines_length[i * 3    ] += offset;
-                lines_length[i * 3 + 1] += offset;
-                lines_length[i * 3 + 2] += offset;
-            }
-
-            // Align gates outside the range
-            int min = control_qubit_begin < target_qubit_begin ? control_qubit_begin : target_qubit_begin;
-            int max = (control_qubit_begin + control_qubit_count) < (target_qubit_begin + target_qubit_count) ?
-                        target_qubit_begin + target_qubit_count : control_qubit_begin + control_qubit_count;
-            int mid = (gate_strlen - padding.length() * 2) / 2;
-            for (int i = 0; i < min; ++i)
-            {
-                lines[i * 3    ].append(mid, ' ');
-                lines[i * 3 + 1].append(repeat(mid, "─"));
-                lines[i * 3 + 2].append(mid, ' ');
-                lines_length[i * 3    ] += mid;
-                lines_length[i * 3 + 1] += mid;
-                lines_length[i * 3 + 2] += mid;
-            }
-            for (int i = max; i < qubit_count; ++i)
-            {
-                lines[i * 3    ].append(mid, ' ');
-                lines[i * 3 + 1].append(repeat(mid, "─"));
-                lines[i * 3 + 2].append(mid, ' ');
-                lines_length[i * 3    ] += mid;
-                lines_length[i * 3 + 1] += mid;
-                lines_length[i * 3 + 2] += mid;
-            }
+            // Reset the buffers for next iteration
+            control_qubit_buffer.clear();
+            target_qubit_buffer.clear();
+            qubit_set.clear();
         }
-       
-        if (lines_length[target_qubit_begin * 3] > current_circuit_length)
-            current_circuit_length = lines_length[target_qubit_begin * 3];
+        else
+        {
+            throw std::invalid_argument{ "Could not parse the given circuit string representation" };
+        }
 
-        gates_current_begin = gates_current_end + 1;
+        // Continue parsing remaining gates
+        parse_string = gate_match.suffix();
     }
-
-    //Fill circuit till end
+    
+    // Fill circuit with padding till end
     fill_circuit();
 
     //Add newlines
-    auto total_length = 0;
+    std::size_t total_length = 0;
     for (auto& line : lines)
     {
-        line.append("\n");
-        total_length += line.length();
+        line << "\n";
+
+        line.seekp(0, std::ios::end);
+        total_length += line.tellp();
     }
 
-    std::string out;
-    out.reserve(total_length + 1);
-    out.append(1, '\n');
+    std::string output;
+    output.reserve(total_length + 1);
+    output.append(1, '\n');
 
     //Append all lines into output string
     for (const auto& line : lines)
-        out.append(line);
+        output.append(line.str());
 
-    return out;
+    return output;
 }
 
 std::string gen_circuit_text_image(const QCircuit& circuit, const QSimulator& simulator)
 {
     if (circuit.qubit_count() != simulator.qubit_count())
-        throw std::invalid_argument{"Circuit and simulator qubit count must match"};
+        throw std::invalid_argument{ "Circuit and simulator qubit count must match" };
 
     //Add number of qubits
     const int qubits = circuit.qubit_count();
 
-    std::string circuit_representation = std::to_string(qubits) + "\n";
+    std::stringstream circuit_representation;
+    circuit_representation << qubits << ";";
 
     //Add states
     for (int i = 0; i < qubits; ++i)
@@ -603,14 +531,18 @@ std::string gen_circuit_text_image(const QCircuit& circuit, const QSimulator& si
         else
             throw std::invalid_argument{"Superposed inital states not supported"};
 
-        circuit_representation.append(std::to_string(i) + "," + std::to_string(val) + ";");
+        circuit_representation << i << "," << val << ";";
     }
 
     //Add circuit gates
-    circuit_representation.append("\n");
-    circuit_representation.append(circuit.representation());
+    circuit_representation << circuit.representation();
 
-    return parse_circuit_representation(circuit_representation);
+    return parse_circuit_representation(circuit_representation.str());
+}
+
+std::string gen_circuit_text_image(std::string schematic)
+{
+    return parse_circuit_representation(std::move(schematic));
 }
 
 void print_circuit_text_image(const QCircuit& circuit, const QSimulator& simulator)

@@ -345,7 +345,8 @@ std::string parse_circuit_representation(std::string parse_string)
                 }
 
                 // Handle adding marks for the target qubit
-                if (target_qubit_buffer[current_trgt_index] == current_qubit)
+                if (current_trgt_index < target_qubit_buffer.size() &&
+                    target_qubit_buffer[current_trgt_index] == current_qubit)
                 {
                     // Special case for SWAP gate
                     if (gate_name == "Swap")
@@ -435,7 +436,8 @@ std::string parse_circuit_representation(std::string parse_string)
                         previous_qubit = begin + count - 1;
                     }
                 }
-                else
+                else if (current_ctrl_index < control_qubit_buffer.size() &&
+                         control_qubit_buffer[current_ctrl_index] == current_qubit)
                 {
                     // If control qubit is the first qubit in the gate
                     if (is_control_first && current_qubit == control_qubit_buffer.front())
@@ -464,6 +466,8 @@ std::string parse_circuit_representation(std::string parse_string)
 
                     previous_qubit = current_qubit;
                 }
+                else
+                    throw std::runtime_error{ "Unexpected error" };
             }
 
             // Update the circuit length if the line length is larger

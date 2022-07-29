@@ -445,6 +445,8 @@ namespace aqs
         auto hamil_circuit = hamiltonian_evolution_circuit(matrix, range);
         Data_t data{param_buff, hamil_circuit, state_circuit};
 
+        // Create custom cost function required by nlopt 
+        // This cost function uses Quantum Simulation to evaluate it
         auto cost_function = [](const std::vector<double>& x, std::vector<double>& gradient, void* void_data)
         {
             Data_t& data = *static_cast<Data_t*>(void_data);

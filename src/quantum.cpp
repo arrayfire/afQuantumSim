@@ -60,9 +60,9 @@ static af::array hadamard_matrix;
 static af::randomEngine intern_rnd_engine;
 
 static std::random_device dv;
-static std::mt19937 rd_gen{dv()};
+static std::mt19937 rd_gen{ dv()} ;
 
-static std::uniform_real_distribution<float> lin_dist{0.0f, 1.0f};
+static std::uniform_real_distribution<float> lin_dist{ 0.0f , 1.0f };
 
 namespace aqs
 {
@@ -168,8 +168,16 @@ QCircuit::QCircuit(uint32_t qubit_count)
 void QCircuit::clear()
 {
     // Clear list of compiled gates
-    cached_index_ = 0;
+    clear_cache();
+
+    // Reset list of added gates
     gate_list_.clear();
+}
+
+void QCircuit::clear_cache()
+{
+    // Resets the cached index
+    cached_index_ = 0;
 
     // Clear circuit matrix
     circuit_ = af::identity(state_count(), state_count(), c32);
@@ -192,7 +200,7 @@ void QCircuit::compile()
 }
 
 QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const QNoise& noise_generator)
-    :states_(qubit_count, initial_state), statevector_{ fast_pow2(qubit_count), c32 }, noise_{ noise_generator },
+    :states_(qubit_count, initial_state), statevector_(fast_pow2(qubit_count), c32), noise_{ noise_generator },
      qubits_{ qubit_count }, basis_{ Basis::Z }
 {
     generate_statevector();
@@ -1167,8 +1175,10 @@ QCircuit& CSwap::operator()(QCircuit& qc) const
     auto column_indices = iota;
     af::replace(column_indices, (iota & control) != control, replace_vals);
 
+    // Generate CSwap sparse matrix
     auto matrix_cswap = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
 
+    // Update circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(matrix_cswap, circuit);
 
@@ -1238,14 +1248,18 @@ QCircuit& CH::operator()(QCircuit& qc) const
         { 1.f , 0.f } , { 0.f , 0.f }
     };
 
+    // Select all positions where the control qubit is |1>
     auto values = af::tile(af::array(2, identity_vals), states);
     auto value_indices = ((iota2 & value_mask) ^ value_mask).as(b8);
 
+    // Replace the enabled places with the hadamard matrix
     af::replace(values, !(control_indices &&  value_indices), af::constant(af::cfloat{ sqrt2, 0.f }, states * 2));
     af::replace(values, !(control_indices && !value_indices), af::constant(af::cfloat{ -sqrt2, 0.f }, states * 2));
 
+    // Generate sparse matrix
     auto matrix_chadamard = af::sparse(states, states, values, row_indices, column_indices);
 
+    // Update circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(matrix_chadamard, circuit);
 
@@ -1276,6 +1290,7 @@ QCircuit& CRotX::operator()(QCircuit& qc) const
     if (target_qubit == control_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
+    // Apply a Control Gate with RotX as the target gate
     ControlGate(RotX::gate(angle), control_qubit, target_qubit)(qc);
 
     return qc;
@@ -1305,6 +1320,7 @@ QCircuit& CRotY::operator()(QCircuit& qc) const
     if (target_qubit == control_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
+    // Apply a Control Gate with RotY as the target gate
     ControlGate(RotY::gate(angle), control_qubit, target_qubit)(qc);
 
     return qc;
@@ -1334,6 +1350,7 @@ QCircuit& CRotZ::operator()(QCircuit& qc) const
     if (target_qubit == control_qubit)
         throw std::invalid_argument{"Control qubit cannot be the same as the target qubit"};
 
+    // Apply a Control Gate with RotZ as the target gate
     ControlGate(RotZ::gate(angle), control_qubit, target_qubit)(qc);
 
     return qc;
@@ -1384,8 +1401,11 @@ QCircuit& CCNot::operator()(QCircuit& qc) const
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
     auto column_indices = iota;
+
+    // Replace all places where both control qubits are |1> with swapped indices
     af::replace(column_indices, ((iota ^ control_mask) & control_mask).as(b8), iota ^ target_mask);
 
+    // Create CCNot sparse matrix
     auto ccnot_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
 
     //Update the circuit matrix by matrix multiplication
@@ -1441,13 +1461,16 @@ QCircuit& Or::operator()(QCircuit& qc) const
     auto iota = af::iota(states, 1, s32);
     auto row_indices = af::iota(states + 1, 1, s32);
     auto column_indices = iota;
+
+    // Replace all indices where control qubits or result in |1> with swapped indices
     af::replace(column_indices, ((iota & control_mask) == 0).as(b8), iota ^ target_mask);
 
-    auto ccnot_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
+    // Generate Or sparse matrix
+    auto or_matrix = af::sparse(states, states, af::constant(af::cfloat{ 1.f , 0.f }, states), row_indices, column_indices);
 
     //Update the circuit matrix by matrix multiplication
     auto& circuit = qc.circuit();
-    circuit = af::matmul(ccnot_matrix, circuit);
+    circuit = af::matmul(or_matrix, circuit);
 
     return qc;
 }
@@ -1456,6 +1479,7 @@ std::string Or::to_string() const
 {
     std::stringstream buffer;
 
+    // Equivalent circuit for 2-qubit Or with 1 target
     buffer << "P;"
            << "X,0,1:" << control_qubit_A << ";"
            << "X,0,1:" << control_qubit_B << ";"
@@ -1468,7 +1492,26 @@ std::string Or::to_string() const
     return buffer.str();
 }
 
+/**
+ * @brief Given the circuit string representation and starting target qubit,
+ *        it updates the string to reflect the new positions for the internal gates added
+ * 
+ * @param circuit_string circuit string representation to be updated
+ * @param offset index of the target qubit begin
+ * 
+ * @return std::string circuit string representation for the updated circuit
+ */
 static std::string update_circuit_representation(const std::string& circuit_string, uint32_t offset);
+
+/**
+ * @brief Given the circuit string representation, starting target qubit, and additional control qubit;
+ *        it updates the string to reflect the new positions for the internal gates added
+ * 
+ * @param circuit_string circuit string representation to be updated
+ * @param control index of the control qubit
+ * @param target index of the target qubit begin
+ * @return std::string circuit string representation for the updated circuit
+ */
 static std::string update_ctrl_circuit_representation(const std::string& circuit_string, uint32_t control, uint32_t target);
 
 Gate::Gate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name)
@@ -1528,6 +1571,7 @@ QCircuit& Gate::operator()(QCircuit& qc) const
     const uint32_t gate_qubit_begin = target_qubit_begin;
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
 
+    // Generate the matrix of the source circuit
     internal_circuit.compile();
     const af::array& gate = internal_circuit.circuit();
 
@@ -1537,13 +1581,18 @@ QCircuit& Gate::operator()(QCircuit& qc) const
     auto m = af::tile(af::flat(af::tile(af::iota(gate_states, 1, s32).T(), gate_states)), rem_count);
     auto n = af::iota(gate_states, gate_states * rem_count, s32);
     auto ind = af::flat(af::tile(af::iota(rem_count, 1, s32).T(), gate_states * gate_states));
+
+    // Find the target indices where the values of the source circuit should go
     auto ii = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, n, ind, len);
     auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, m, ind, len);
 
+    // Get a list of the entries in order where should they be placed
     af::array gate_values = gate(n * gate_states + m);
 
+    // Replace the entries of the target matrix with the entries selected from the source matrix
     gate_matrix(ii * circuit_states + jj) = gate_values;
 
+    // Update circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(gate_matrix, circuit);
 
@@ -1614,6 +1663,7 @@ QCircuit& ControlGate::operator()(QCircuit& qc) const
     const uint32_t gate_qubit_begin = target_qubit_begin;
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
 
+    // Generate the matrix of the source circuit
     internal_circuit.compile();
     const af::array& gate = internal_circuit.circuit();
 
@@ -1622,19 +1672,24 @@ QCircuit& ControlGate::operator()(QCircuit& qc) const
     auto m = af::tile(af::flat(af::tile(af::iota(gate_states, 1, s32).T(), gate_states)), rem_count);
     auto n = af::iota(gate_states, gate_states * rem_count, s32);
     auto ind = af::flat(af::tile(af::iota(rem_count, 1, s32).T(), gate_states * gate_states));
-
     auto offset = control_qubit < target_qubit_begin ? 0 : 1;
+
+    // Find the target indices where the values of the source circuit should go
     auto ii = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits - offset, n, ind, len);
     auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits - offset, m, ind, len);
 
+    // The target indices must be those where the control qubit is |1>
     auto ones = af::constant(1, len, s32);
     ii = insert_bits(ii, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
     jj = insert_bits(jj, ones, af::constant(qubits - control_qubit - 1, len, s32), ones, len);
 
+    // Get a list of the entries in order where should they be placed
     af::array gate_values = gate(n * gate_states + m);
 
+    // Replace the entries of the target matrix with the entries selected from the source matrix
     gate_matrix(ii * circuit_states + jj) = gate_values;
 
+    // Update circuit
     auto& circuit = qc.circuit();
     circuit = af::matmul(gate_matrix, circuit);
 
@@ -1715,7 +1770,7 @@ QState Phase_op(const QState& state, float angle)
 
 std::string update_circuit_representation(const std::string& circuit_string, uint32_t offset)
 {
-    std::string out;
+    std::stringstream out;
     std::size_t current_begin = 0;
     auto current_end = circuit_string.find(";", current_begin);
 
@@ -1725,20 +1780,19 @@ std::string update_circuit_representation(const std::string& circuit_string, uin
         auto name_str = circuit_string.substr(current_begin, name_end - current_begin);
         if (name_end > current_end)
         {
-            out.append(circuit_string.substr(current_begin, current_end - current_begin));
-            out.append(";");
+            out << circuit_string.substr(current_begin, current_end - current_begin) << ";";
             current_begin = current_end + 1;
             current_end = circuit_string.find(";", current_begin);
             continue;
         }
 
-        out.append(name_str).append(",");
+        out << name_str << ",";
 
         auto colon_pos = circuit_string.find(":", current_begin);
         auto qubit_pos_begin = name_end + 1;
         if (colon_pos < current_end)
         {
-            out.append(circuit_string.substr(name_end + 1, colon_pos - name_end));
+            out << circuit_string.substr(name_end + 1, colon_pos - name_end);
             qubit_pos_begin = colon_pos + 1;
         }
 
@@ -1748,20 +1802,18 @@ std::string update_circuit_representation(const std::string& circuit_string, uin
         //Add the offset to all target qubits
         while (qubit_pos_end < current_end)
         {
-            out.append(std::to_string(std::stoi(circuit_string.substr(qubit_pos_begin, qubit_pos_end - qubit_pos_begin)) + offset));
-            out.append(",");
+            out << std::stoi(circuit_string.substr(qubit_pos_begin, qubit_pos_end - qubit_pos_begin)) + offset << ",";
             qubit_pos_begin = qubit_pos_end + 1;
             qubit_pos_end = circuit_string.find(",", qubit_pos_begin);
         }
         qubit_pos_end = qubit_pos_end > current_end ? current_end : qubit_pos_end;
-        out.append(std::to_string(std::stoi(circuit_string.substr(qubit_pos_begin, qubit_pos_end - qubit_pos_begin)) + offset));
+        out << std::stoi(circuit_string.substr(qubit_pos_begin, qubit_pos_end - qubit_pos_begin)) + offset << ";";
 
         current_begin = current_end + 1;
         current_end = circuit_string.find(";", current_begin);
-        out.append(";");
     }
 
-    return out;
+    return out.str();
 }
 
 std::string update_ctrl_circuit_representation(const std::string& circuit_string, uint32_t control, uint32_t target)

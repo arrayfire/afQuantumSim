@@ -6,18 +6,19 @@
  * The complete license agreement can be obtained at:
  * http://arrayfire.com/licenses/BSD-3-Clause
  ********************************************************/
+
 #pragma once
 
 #include <arrayfire.h>
 
+#include "utils.h"
+
 #include <array>
 #include <cassert>
+#include <cstdint>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <vector>
-
-#include "utils.h"
 
 /**
  * 
@@ -389,6 +390,12 @@ public:
      * 
      */
     void clear();
+
+    /**
+     * @brief Clears the circuit matrix and resets the cache index of the compiled gates
+     * 
+     */
+    void clear_cache();
 
 private:
     std::vector<std::shared_ptr<QGate>> gate_list_;

@@ -40,20 +40,6 @@ namespace aqs
                                 const QCircuit& gate, bool compile = false);
 
     /**
-     * @brief Creates a circuit containing a group of Phase gates controlled by a qubit
-     * 
-     * @param qubits number of qubits in the circuit
-     * @param control_qubit position of the qubit controlling the gates
-     * @param target_qubit_begin starting position where the qubits will be added
-     * @param angle angle for the Phase gate
-     * @param compile flag to compile the circuit before returning
-     * 
-     * @return QCircuit 
-     */
-    QCircuit Control_GroupPhase(uint32_t qubits, uint32_t control_qubit, uint32_t target_qubit_begin, float angle,
-                                bool compile = false);
-
-    /**
      * @brief Creates a circuit containing a gate controlled by a given number of consecutive qubits
      * 
      * @param qubits number of qubits in the circuit

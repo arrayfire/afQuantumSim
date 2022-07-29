@@ -907,7 +907,7 @@ void test_qsim_gates()
     assert(cfequal(qs.state(0b0000), af::cfloat{1.0f, 0.0f}, diff));
 
     // Custom Control Gate
-    std::cout << "CCustom gate\n";
+    std::cout << "Control Custom gate\n";
     aqs::QCircuit temp(2);
     temp << aqs::H(0);
     temp << aqs::CNot(0, 1);

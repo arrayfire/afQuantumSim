@@ -27,8 +27,6 @@
 
 * Implement elaborated examples (see [link](https://qiskit.org/textbook/ch-applications/algs_for_apps_index.html))
 
-* Implement unitary gate
-
 ### High Priority
 
 * Implement a Quantum Noise Simulator
@@ -36,6 +34,9 @@
 * Add a QMeasurement class to deal with profiling and measurements
 
 ### Medium Priority
+
+* Implement unitary gate
+
 * Allow for caching of the generated fundamental gates
 
 * Restructure the code to support more qubits and test
@@ -43,6 +44,7 @@
 * Implement an optimizer (removal of gates that cancel each other, combine the addition of the same gate multiple times in a pre-generated matrix)
 
 ### Low Priority
+
 * Implement a way to regenerate the state of individual qubits from the global state
 
 ### Scrapped

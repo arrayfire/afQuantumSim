@@ -10,7 +10,6 @@
 #include "quantum_gates.h"
 
 #include <algorithm>
-#include <iostream>
 #include <unordered_set>
 
 namespace aqs
@@ -90,31 +89,6 @@ namespace aqs
 
         return qc;
     }
-
-    QCircuit  Control_GroupPhase(uint32_t qubits, uint32_t control_qubit, uint32_t target_qubit_begin, float angle, bool compile)
-    {
-        if (control_qubit >= qubits)
-            throw std::invalid_argument{"Invalid control qubit position"};
-        if (target_qubit_begin <= control_qubit || target_qubit_begin >= qubits)
-            throw std::invalid_argument{"Invalid target qubit begin position"};
-    
-        QCircuit qc(qubits);
-        if (target_qubit_begin == qubits - 1)
-        {
-            qc << CPhase(control_qubit, target_qubit_begin, angle);
-        }
-        else
-        {
-            QCircuit cphases(qubits - 1 - target_qubit_begin);
-            for (uint32_t i = target_qubit_begin; i < qubits; ++i)
-                cphases << Phase(i, angle);
-        }
-
-        if (compile)
-            qc.compile();
-
-        return qc;
-    } 
 
     QCircuit NControl_Gate(uint32_t qubits, uint32_t control_qubit_begin, uint32_t control_qubit_count, uint32_t target_qubit_begin,
                            const QCircuit& gate, bool compile)
@@ -271,8 +245,11 @@ namespace aqs
         qc.compile();
 
         auto& list = qc.gate_list();
+
+        // Reverse the order of the added gates
         std::reverse(list.begin(), list.end());
 
+        // Execute the adjoint of each individual gate
         for (auto& g_ptr : list)
         {
             switch (g_ptr->type())
@@ -352,10 +329,11 @@ namespace aqs
                 break;
             }
             default:
-                throw;
+                throw std::runtime_error{ "Unknown unsupported gate cannot be adjoint" };
             }
         }
 
+        // Reverse the order of the circuit string representation
         const auto& rep = qc.representation();
         std::size_t prev = 0;
         auto mark = rep.find(';', prev);
@@ -368,6 +346,13 @@ namespace aqs
         }
         qc.representation() = current;
 
+        /*
+            Equivalent to
+
+            qc.clear_cache();
+            qc.compile();
+        */
+        // af::transposeInPlace(qc.circuit(), true);
         qc.circuit() = af::transpose(qc.circuit(), true);
 
         return qc;

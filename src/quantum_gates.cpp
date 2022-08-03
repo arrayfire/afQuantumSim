@@ -319,13 +319,13 @@ namespace aqs
             case Gate::static_type():
             {
                 auto& g = *dynamic_cast<Gate*>(g_ptr.get());
-                g.internal_circuit = Adjoint_Gate(g.internal_circuit);
+                g.internal_circuit = std::make_shared<QCircuit>(Adjoint_Gate(*g.internal_circuit));
                 break;
             }
             case ControlGate::static_type():
             {
                 auto& g = *dynamic_cast<ControlGate*>(g_ptr.get());
-                g.internal_circuit = Adjoint_Gate(g.internal_circuit); 
+                g.internal_circuit = std::make_shared<QCircuit>(Adjoint_Gate(*g.internal_circuit)); 
                 break;
             }
             default:

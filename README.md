@@ -68,7 +68,7 @@ and get an output in your terminal like this:
 ## Build Steps
 1. Clone the library
 ```sh
-gitclone https://github.com/edwinsolisf/afQuantumSim.git
+git clone https://github.com/edwinsolisf/afQuantumSim.git
 ```
 2. Compile the library
     - CMake:
@@ -83,7 +83,7 @@ gitclone https://github.com/edwinsolisf/afQuantumSim.git
 
 3. Add the correct include path and link the library into your program
 
-    -CMake: link with the target `afquantum`
+    - CMake: link with the target `afquantum`
 
 ## Requirements
 

@@ -11,6 +11,7 @@
 
 #include <random>
 #include <stdexcept>
+#include <unordered_map>
 
 /*
     Pauli X matrix
@@ -64,14 +65,17 @@ static std::mt19937 rd_gen{ dv()} ;
 
 static std::uniform_real_distribution<float> lin_dist{ 0.0f , 1.0f };
 
+static std::unordered_map<std::string, std::shared_ptr<aqs::QCircuit>> cached_circuits;
+
 namespace aqs
 {
 
 void initialize(int argc, char** argv, af::Backend backend)
 {
-    int device = (argc > 1) ? ::std::stoi(argv[1]) : 0;
-    af::setDevice(device);
     af::setBackend(backend);
+
+    int device = (argc > 1) ? std::stoi(argv[1]) : 0;
+    af::setDevice(device);
 
     x_matrix = af::array(2, 2, x_mat);
 
@@ -83,6 +87,11 @@ void initialize(int argc, char** argv, af::Backend backend)
 
     std::random_device rnd_device;
     intern_rnd_engine = af::randomEngine(AF_RANDOM_ENGINE_THREEFRY, rnd_device());
+}
+
+void clear_circuit_cache()
+{
+    cached_circuits.clear();
 }
 
 QState::QState(const std::complex<float>& zeroState, const std::complex<float>& oneState)
@@ -183,6 +192,23 @@ void QCircuit::clear_cache()
     circuit_ = af::identity(state_count(), state_count(), c32);
 }
 
+bool operator==(const QCircuit& lhs, const QCircuit& rhs)
+{
+    if (lhs.qubit_count() != rhs.qubit_count())
+        return false;
+    if (lhs.gate_list().size() != rhs.gate_list().size())
+        return false;
+    if (lhs.representation() != rhs.representation())
+        return false;
+    for (uint32_t i = 0; i < lhs.gate_list().size(); ++i)
+    {
+        if (lhs.gate_list()[i] != rhs.gate_list()[i])
+            return false;
+    }
+
+    return true;
+}
+
 void QCircuit::compile()
 {
     if (cached_index_ != gate_list_.size())
@@ -200,10 +226,15 @@ void QCircuit::compile()
 }
 
 QSimulator::QSimulator(uint32_t qubit_count, const QState& initial_state, const QNoise& noise_generator)
-    :states_(qubit_count, initial_state), statevector_(fast_pow2(qubit_count), c32), noise_{ noise_generator },
-     qubits_{ qubit_count }, basis_{ Basis::Z }
+    :states_(qubit_count, initial_state), statevector_(af::constant(0.f, fast_pow2(qubit_count), c32)),
+     noise_{ noise_generator }, qubits_{ qubit_count }, basis_{ Basis::Z }
 {
-    generate_statevector();
+    if (initial_state == aqs::QState::zero())
+        statevector_(0) = 1.f;
+    else if (initial_state == aqs::QState::one())
+        statevector_(state_count() - 1) = 1.f;
+    else
+        generate_statevector();
 }
 
 QSimulator::QSimulator(uint32_t qubit_count, std::vector<QState> initial_states, const QNoise& noise_generator)
@@ -536,6 +567,11 @@ QCircuit& X::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool X::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const X*>(&rhs)->target_qubit;
+}
+
 std::string X::to_string() const
 {
     return "X,0,1:" + std::to_string(target_qubit) + ";";
@@ -579,6 +615,11 @@ QCircuit& Y::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool Y::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const Y*>(&rhs)->target_qubit;
+}
+
 std::string Y::to_string() const
 {
     return "Y,0,1:" + std::to_string(target_qubit) + ";";
@@ -618,6 +659,11 @@ QCircuit& Z::operator()(QCircuit& qc) const
     circuit = af::matmul(matrix_z, circuit);
 
     return qc;
+}
+
+bool Z::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const Z*>(&rhs)->target_qubit;
 }
 
 std::string Z::to_string() const
@@ -660,6 +706,12 @@ QCircuit& RotX::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool RotX::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const RotX*>(&rhs)->target_qubit
+            && angle == static_cast<const RotX*>(&rhs)->angle;
+}
+
 std::string RotX::to_string() const
 {
     return "RotX,0,1:" + std::to_string(target_qubit) + ";";
@@ -699,6 +751,14 @@ QCircuit& RotY::operator()(QCircuit& qc) const
 
     return qc;
 }
+
+
+bool RotY::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const RotY*>(&rhs)->target_qubit
+            && angle == static_cast<const RotY*>(&rhs)->angle;
+}
+
 
 std::string RotY::to_string() const
 {
@@ -740,6 +800,12 @@ QCircuit& RotZ::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool RotZ::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const RotZ*>(&rhs)->target_qubit
+            && angle == static_cast<const RotZ*>(&rhs)->angle;
+}
+
 std::string RotZ::to_string() const
 {
     return "RotZ,0,1:" + std::to_string(target_qubit) + ";";
@@ -769,6 +835,11 @@ QCircuit& H::operator()(QCircuit& qc) const
     auto& circuit = qc.circuit();
     circuit = af::matmul(temp, circuit);
     return qc;
+}
+
+bool H::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const H*>(&rhs)->target_qubit;
 }
 
 std::string H::to_string() const
@@ -810,6 +881,12 @@ QCircuit& Phase::operator()(QCircuit& qc) const
     circuit = af::matmul(matrix_phase, circuit);
 
     return qc;
+}
+
+bool Phase::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const Phase*>(&rhs)->target_qubit
+            && angle == static_cast<const Phase*>(&rhs)->angle;
 }
 
 std::string Phase::to_string() const
@@ -879,6 +956,12 @@ QCircuit& Swap::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool Swap::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit_A == static_cast<const Swap*>(&rhs)->target_qubit_A
+            && target_qubit_B == static_cast<const Swap*>(&rhs)->target_qubit_B;
+}
+
 std::string Swap::to_string() const
 {
     return "Swap,0,2:" + std::to_string(target_qubit_A) + "," + std::to_string(target_qubit_B) + ";";
@@ -929,6 +1012,12 @@ QCircuit& CX::operator()(QCircuit& qc) const
     circuit = af::matmul(cx_matrix, circuit);
 
     return qc;
+}
+
+bool CX::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CX*>(&rhs)->target_qubit
+            && control_qubit == static_cast<const CX*>(&rhs)->control_qubit;
 }
 
 std::string CX::to_string() const
@@ -994,6 +1083,13 @@ QCircuit& CY::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool CY::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CY*>(&rhs)->target_qubit
+            && control_qubit == static_cast<const CY*>(&rhs)->control_qubit;
+}
+
+
 std::string CY::to_string() const
 {
     return "Y,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
@@ -1050,6 +1146,12 @@ QCircuit& CZ::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool CZ::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CZ*>(&rhs)->target_qubit
+            && control_qubit == static_cast<const CZ*>(&rhs)->control_qubit;
+}
+
 std::string CZ::to_string() const
 {
     return "Z,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
@@ -1104,6 +1206,13 @@ QCircuit& CPhase::operator()(QCircuit& qc) const
     circuit = af::matmul(cphase_matrix, circuit);
 
     return qc;
+}
+
+bool CPhase::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CPhase*>(&rhs)->target_qubit
+            && control_qubit == static_cast<const CPhase*>(&rhs)->control_qubit
+            && angle == static_cast<const CPhase*>(&rhs)->angle;
 }
 
 std::string CPhase::to_string() const
@@ -1183,6 +1292,13 @@ QCircuit& CSwap::operator()(QCircuit& qc) const
     circuit = af::matmul(matrix_cswap, circuit);
 
     return qc;
+}
+
+bool CSwap::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit_A == static_cast<const CSwap*>(&rhs)->target_qubit_A
+            && target_qubit_B == static_cast<const CSwap*>(&rhs)->target_qubit_B
+            && control_qubit == static_cast<const CSwap*>(&rhs)->control_qubit;
 }
 
 std::string CSwap::to_string() const
@@ -1266,6 +1382,12 @@ QCircuit& CH::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool CH::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CH*>(&rhs)->target_qubit
+            && control_qubit == static_cast<const CH*>(&rhs)->control_qubit;
+}
+
 std::string CH::to_string() const
 {
     return "H,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
@@ -1294,6 +1416,13 @@ QCircuit& CRotX::operator()(QCircuit& qc) const
     ControlGate(RotX::gate(angle), control_qubit, target_qubit)(qc);
 
     return qc;
+}
+
+bool CRotX::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CRotX*>(&rhs)->target_qubit
+            && control_qubit == static_cast<const CRotX*>(&rhs)->control_qubit
+            && angle == static_cast<const CRotX*>(&rhs)->angle;
 }
 
 std::string CRotX::to_string() const
@@ -1326,6 +1455,13 @@ QCircuit& CRotY::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool CRotY::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CRotY*>(&rhs)->target_qubit
+            && control_qubit == static_cast<const CRotY*>(&rhs)->control_qubit
+            && angle == static_cast<const CRotY*>(&rhs)->angle;
+}
+
 std::string CRotY::to_string() const
 {
     return "RotY,1,1:" + std::to_string(control_qubit) + "," + std::to_string(target_qubit) + ";";
@@ -1354,6 +1490,13 @@ QCircuit& CRotZ::operator()(QCircuit& qc) const
     ControlGate(RotZ::gate(angle), control_qubit, target_qubit)(qc);
 
     return qc;
+}
+
+bool CRotZ::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CRotZ*>(&rhs)->target_qubit
+            && control_qubit == static_cast<const CRotZ*>(&rhs)->control_qubit
+            && angle == static_cast<const CRotZ*>(&rhs)->angle;
 }
 
 std::string CRotZ::to_string() const
@@ -1413,6 +1556,13 @@ QCircuit& CCNot::operator()(QCircuit& qc) const
     circuit = af::matmul(ccnot_matrix, circuit);
 
     return qc;
+}
+
+bool CCNot::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const CCNot*>(&rhs)->target_qubit
+            && control_qubit_A == static_cast<const CCNot*>(&rhs)->control_qubit_A
+            && control_qubit_B == static_cast<const CCNot*>(&rhs)->control_qubit_B;
 }
 
 std::string CCNot::to_string() const
@@ -1475,6 +1625,13 @@ QCircuit& Or::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool Or::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit == static_cast<const Or*>(&rhs)->target_qubit
+            && control_qubit_A == static_cast<const Or*>(&rhs)->control_qubit_A
+            && control_qubit_B == static_cast<const Or*>(&rhs)->control_qubit_B;
+}
+
 std::string Or::to_string() const
 {
     std::stringstream buffer;
@@ -1515,9 +1672,26 @@ static std::string update_circuit_representation(const std::string& circuit_stri
 static std::string update_ctrl_circuit_representation(const std::string& circuit_string, uint32_t control, uint32_t target);
 
 Gate::Gate(const QCircuit& circuit_, uint32_t target_qubit_begin_, std::string name)
-    : internal_circuit(circuit_), representation{},
+    : representation{},
         qubit_count{circuit_.qubit_count()}, target_qubit_begin{target_qubit_begin_}
 {
+    auto circuit_iter = cached_circuits.find(circuit_.representation());
+    if (circuit_iter == cached_circuits.end())
+    {
+        auto res = cached_circuits.insert({circuit_.representation(), std::make_shared<QCircuit>(circuit_)});
+        if (!res.second)
+            throw std::runtime_error{"Could not store circuit"};
+        else
+            circuit_iter = res.first;
+    }
+    else
+    {
+        if (!(circuit_ == *(circuit_iter->second)))
+            cached_circuits[circuit_.representation()] = std::make_shared<QCircuit>(circuit_);
+        circuit_iter = cached_circuits.find(circuit_.representation());
+    }
+    internal_circuit = circuit_iter->second;
+
     if (name == "")
     {
         representation = update_circuit_representation(circuit_.representation(), target_qubit_begin_);
@@ -1572,8 +1746,8 @@ QCircuit& Gate::operator()(QCircuit& qc) const
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
 
     // Generate the matrix of the source circuit
-    internal_circuit.compile();
-    const af::array& gate = internal_circuit.circuit();
+    internal_circuit->compile();
+    const af::array& gate = internal_circuit->circuit();
 
     uint32_t rem_count = 1 << (circuit_qubits - gate_qubits);
     
@@ -1599,10 +1773,33 @@ QCircuit& Gate::operator()(QCircuit& qc) const
     return qc;
 }
 
+bool Gate::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit_begin == static_cast<const Gate*>(&rhs)->target_qubit_begin
+            && internal_circuit == static_cast<const Gate*>(&rhs)->internal_circuit;
+}
+
 ControlGate::ControlGate(const QCircuit& circuit_, uint32_t control_qubit_, uint32_t target_qubit_begin_, std::string name)
-        : internal_circuit(circuit_), representation{},
+        : representation{},
           qubit_count{circuit_.qubit_count()}, control_qubit{control_qubit_}, target_qubit_begin{target_qubit_begin_}
 {
+    auto circuit_iter = cached_circuits.find(circuit_.representation());
+    if (circuit_iter == cached_circuits.end())
+    {
+        auto res = cached_circuits.insert({circuit_.representation(), std::make_shared<QCircuit>(circuit_)});
+        if (!res.second)
+            throw std::runtime_error{"Could not store circuit"};
+        else
+            circuit_iter = res.first;
+    }
+    else
+    {
+        if (!(circuit_ == *(circuit_iter->second)))
+            cached_circuits[circuit_.representation()] = std::make_shared<QCircuit>(circuit_);
+        circuit_iter = cached_circuits.find(circuit_.representation());
+    }
+    internal_circuit = circuit_iter->second;
+
     if (name == "")
     {
         representation = update_ctrl_circuit_representation(circuit_.representation(), control_qubit, target_qubit_begin_);
@@ -1664,8 +1861,8 @@ QCircuit& ControlGate::operator()(QCircuit& qc) const
     af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
 
     // Generate the matrix of the source circuit
-    internal_circuit.compile();
-    const af::array& gate = internal_circuit.circuit();
+    internal_circuit->compile();
+    const af::array& gate = internal_circuit->circuit();
 
     uint32_t rem_count = 1 << (circuit_qubits - gate_qubits - 1);
     auto len = gate_states * gate_states * rem_count;
@@ -1694,6 +1891,13 @@ QCircuit& ControlGate::operator()(QCircuit& qc) const
     circuit = af::matmul(gate_matrix, circuit);
 
     return qc;
+}
+
+bool ControlGate::operator==(const QGate& rhs) const noexcept
+{
+    return type() == rhs.type() && target_qubit_begin == static_cast<const ControlGate*>(&rhs)->target_qubit_begin
+            && control_qubit == static_cast<const ControlGate*>(&rhs)->control_qubit
+            && internal_circuit == static_cast<const ControlGate*>(&rhs)->internal_circuit;
 }
 
 QState X_op(const QState& state)

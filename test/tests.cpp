@@ -1128,8 +1128,6 @@ void test_special_gates()
 
         QCircuit qc = Adjoint_Gate(circuit);
 
-        //assert(af::allTrue<bool>(qc.circuit() == ref.circuit()));
-        //af_print(af::abs(qc.circuit() - ref.circuit()) < 1e-5);
         assert(arrayEquals(qc.circuit(), ref.circuit(), 1e-5));
     }
 

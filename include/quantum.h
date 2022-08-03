@@ -118,6 +118,12 @@ class QSimulator;
 void initialize(int argc, char** argv, af::Backend backend = af::Backend::AF_BACKEND_DEFAULT);
 
 /**
+ * @brief Clears the list of cached circuits
+ * 
+ */
+void clear_circuit_cache();
+
+/**
  * @brief Class managing the behaviour of one qubit
  * 
  */
@@ -396,6 +402,8 @@ public:
      * 
      */
     void clear_cache();
+
+    friend bool operator==(const QCircuit& lhs, const QCircuit& rhs);
 
 private:
     std::vector<std::shared_ptr<QGate>> gate_list_;
@@ -695,6 +703,15 @@ public:
      */
     virtual bool check(const QCircuit& qc) const = 0;
 
+    /**
+     * @brief Compares if two gates are equal
+     * 
+     * @param rhs gate to compare
+     * @return true if they are the same type, affect the same qubit, and have the same properties
+     * @return false otherwise
+     */
+    virtual bool operator==(const QGate& rhs) const noexcept = 0;
+
 protected:
 
     /**
@@ -753,6 +770,7 @@ public:
     QCircuit& operator()(QCircuit& qc) const override { return qc; }
     std::string to_string() const override { return visible ? "B;" : "P;"; }
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Barrier); }
+    bool operator==(const QGate& rhs) const noexcept override { return type() == rhs.type(); }
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Barrier); }
 
@@ -774,6 +792,7 @@ public:
     std::string to_string() const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::X); }
     bool check(const QCircuit&) const override;
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::X); }
     static const QCircuit& gate() {
@@ -804,6 +823,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Y); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Y); }
     static const QCircuit& gate() {
@@ -828,6 +848,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Z); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Z); }
     static const QCircuit& gate() {
@@ -851,6 +872,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::RotX); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotX); }
     static QCircuit gate(float angle) {
@@ -875,6 +897,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::RotY); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotY); }
     static QCircuit gate(float angle) {
@@ -899,6 +922,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::RotZ); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::RotZ); }
     static QCircuit gate(float angle) {
@@ -924,6 +948,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Hadamard); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Hadamard); }
     static const QCircuit& gate() {
@@ -948,6 +973,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Phase); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Phase); }
     static QCircuit gate(float angle){
@@ -972,6 +998,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Swap); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Swap); }
 
@@ -994,6 +1021,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CX); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CX); }
 
@@ -1016,6 +1044,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CY); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CY); }
 
@@ -1038,6 +1067,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CZ); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CZ); }
 
@@ -1060,6 +1090,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CHadamard); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CHadamard); }
 
@@ -1096,6 +1127,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CPhase); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CPhase); }
 
@@ -1118,6 +1150,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CSwap); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CSwap); }
 
@@ -1141,6 +1174,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CRotX); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CRotX); }
 
@@ -1164,6 +1198,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CRotY); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CRotY); }
 
@@ -1187,6 +1222,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CRotZ); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CRotZ); }
 
@@ -1211,6 +1247,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::CCX); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::CCX); }
 
@@ -1239,6 +1276,7 @@ public:
     bool check(const QCircuit&) const override;
     QCircuit& operator()(QCircuit&) const override;
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Or); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Or); }
 
@@ -1268,10 +1306,11 @@ public:
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::Circuit); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::Circuit); }
 
-    mutable QCircuit internal_circuit;
+    std::shared_ptr<QCircuit> internal_circuit;
     std::string representation;
     uint32_t qubit_count;
     uint32_t target_qubit_begin;
@@ -1299,10 +1338,11 @@ public:
     QCircuit& operator()(QCircuit&) const override;
     std::string to_string() const override { return representation; }
     uint32_t type() const noexcept override { return static_cast<uint32_t>(GateTypes::ControlCircuit); }
+    bool operator==(const QGate& rhs) const noexcept override;
 
     static constexpr uint32_t static_type() noexcept { return static_cast<uint32_t>(GateTypes::ControlCircuit); }
 
-    mutable QCircuit internal_circuit;
+    std::shared_ptr<QCircuit> internal_circuit;
     std::string representation;
     uint32_t qubit_count;
     uint32_t control_qubit;

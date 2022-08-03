@@ -35,3 +35,4 @@ target_link_libraries(afquantum PRIVATE NLopt::nlopt PUBLIC ${AF_BUILD_BACKEND})
 
 add_subdirectory(examples)
 add_subdirectory(test)
+add_subdirectory(benchmark)

@@ -52,16 +52,6 @@ def grover(qubits : int):
     result = sim.run(qobj).result()
     #print(result.get_counts())
 
-def grover_benchmark(qubits : int, count : int):
-    start_time = time.perf_counter()
-    for _ in range(count):
-        grover(qubits)
-    end_time = time.perf_counter()
-
-    total_time = (end_time - start_time) * 1000
-    average_time = total_time / count
-    print("Grover")
-    print(f"Total Time: {total_time}, Avg. Time: {average_time}, Test Count: {count}")
 
 def qft(qubits : int):
     qft_circuit = QuantumCircuit(qubits)
@@ -80,18 +70,8 @@ def qft(qubits : int):
     qobj = assemble(qft_circuit)
     result = sim.run(qobj).result()
 
-def qft_benchmark(qubits : int, count : int):
-    start_time = time.perf_counter()
-    for _ in range(count):
-        qft(qubits)
-    end_time = time.perf_counter()
 
-    total_time = (end_time - start_time) * 1000
-    average_time = total_time / count
-    print("QFT")
-    print(f"Total Time: {total_time}, Avg. Time: {average_time}, Test Count: {count}")
-
-def shor():
+def shor(qubits : int):
     N = 15
     np.random.seed(1) # This is to make sure we get reproduceable results
 
@@ -175,24 +155,32 @@ def shor():
                     # print("*** Non-trivial factor found: %i ***" % guess)
                     factor_found = True
 
-def shor_benchmark(count : int):
-    start_time = time.perf_counter()
+def benchmark(qubits : int, count : int, func):
+    total = 0
+    total_squared = 0
     for _ in range(count):
-        shor()
-    end_time = time.perf_counter()
+        start_time = time.perf_counter()
+        func(qubits)
+        end_time = time.perf_counter()
 
-    total_time = (end_time - start_time) * 1000
-    average_time = total_time / count
-    print("Shor")
-    print(f"Total Time: {total_time}, Avg. Time: {average_time}, Test Count: {count}")
+        duration = end_time - start_time
+        total += duration
+        total_squared += duration * duration
+
+    average_time = total / count
+    average_squared_time = total_squared / count
+    sstddev = (average_squared_time - average_time * average_time) * count / (count - 1)
+
+    print(func.__name__)
+    print(f"Total Time: {total} s; Avg. Time: {average_time * 1000} ms, S StdDev: {sstddev * 1000} ms; Test Count: {count}")
 
 def main():
-    qubits = 12
-    count = 10
+    qubits = 10
+    count = 100
 
-    grover_benchmark(qubits, count)
-    qft_benchmark(qubits, count)
-    shor_benchmark(10)
+    benchmark(qubits, count, qft)
+    benchmark(qubits, count, grover)
+    benchmark(qubits, count, shor)
 
 if __name__ == '__main__':
     main()

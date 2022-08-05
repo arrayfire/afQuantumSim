@@ -1,5 +1,7 @@
-// Grover's searching
-// Source: ./examples/grover.cpp
+///////////////////////////////////////////////////////////
+// Code for the algorithms taken from Quantum++ examples
+// See License in docs/licenses/Quantum++
+//////////////////////////////////////////////////////////
 #include <cmath>
 #include <iostream>
 #include <numeric>

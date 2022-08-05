@@ -1,3 +1,8 @@
+#######################################
+# Code for the algorithms taken from the Qiskit Textbook
+# See license in docs/licenses/qiskit
+#######################################
+
 import time
 import numpy as np
 from numpy.random import randint

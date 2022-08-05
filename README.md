@@ -1,16 +1,18 @@
 ArrayFire Quantum Simulator
 =============
 
-Implementation of a Quantum Computer Simulation using ArrayFire as Backend
+ArrayFire Quantum Simulator AQS is a C++14 Quantum Computer Simulator library using ArrayFire
+as the backend for high performance simulators across various devices (CPUs and GPUs).
 
-Currently supports the simulation of up to 30 qubits (theoretically), but has only been tested up to 13 qubits.
+The library supports simulations of up to 30 qubits, but it's limited to the hardware's memory resources.
 
 ## Features
 - Fast and optimized simulations of circuits
 - Lightweight, portable, and extendable library 
-- Intuitive to use use with its high level of abstraction
+- Intuitive to use with its high level of abstraction
 - Allows granular control through its api allowing for easy access of the underlying arrays through ArrayFire
 - Multiple special gates that implement complex features without the need of manual implementations
+- Includes a circuit displayer from constructed circuits
 
 ## Example
 
@@ -68,7 +70,7 @@ and get an output in your terminal like this:
 ## Build Steps
 1. Clone the library
 ```sh
-git clone https://github.com/edwinsolisf/afQuantumSim.git
+git clone https://github.com/edwinsolisf/afQuantumSim.git my_path
 ```
 2. Compile the library
     - CMake:
@@ -76,10 +78,10 @@ git clone https://github.com/edwinsolisf/afQuantumSim.git
     cd my_path
     mkdir build && cd build
     cmake ..
-    make .
+    make
     ```
     - Manually: compile the source files `quantum.h`, `quantum_algo.cpp`, `quantum_gates.cpp`, `quantum_visual.cpp`, and `utils.cpp`
-    with its respective headers
+    with its respective headers into a library
 
 3. Add the correct include path and link the library into your program
 

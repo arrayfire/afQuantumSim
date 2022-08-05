@@ -171,7 +171,7 @@ public:
                  std::complex<float>{ std::cos(azimuthal_angle),
                  std::sin(azimuthal_angle)} * std::sin(polar_angle / 2.f) };
     }
-    
+
     /**
      * @brief Sets the state of the object to given the coefficients of the state
      * 

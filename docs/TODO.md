@@ -33,6 +33,12 @@
 
 * Add a QMeasurement class to deal with profiling and measurements
 
+* Add more exhaustive tests for gates and algorithms
+
+* Move gates declaration and definitions to a file for each one
+
+* Implement optimization of computing only statevector result instead of computing the complete circuit matrix
+
 ### Medium Priority
 
 * Implement unitary gate
@@ -43,13 +49,13 @@
 
 * Implement an optimizer (removal of gates that cancel each other, combine the addition of the same gate multiple times in a pre-generated matrix)
 
+* Implement the addition of same gate multiple times with ranges to decrease computation
+
 ### Low Priority
 
 * Implement a way to regenerate the state of individual qubits from the global state
 
-### Scrapped
-
-* Implement the addition of same gate multiple times with ranges to decrease computation
+* Change the result of `QSimulator::probabilities` to be an `af::array`
 
 ## Fix Bugs
 * To report...

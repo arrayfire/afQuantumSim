@@ -1,14 +1,20 @@
 Usage
 ======
 
+ArrayFire Quantum Simulator AQS is a C++14 Quantum Computer Simulator library using ArrayFire
+as the backend for high performance simulators across various devices.
+
+The main goal of this library is to provide an easy workflow for designing and simulating quantum circuits through a high level API,
+but also allowing low level access and fast, high performance computations through the use of ArrayFire.
+
 # Table of Contents
 1. [Initialization](#initialization)
 2. [Quantum States](#quantum-states)
     1. [Construction](#construction)
+    2. [Gates](#gates)
     2. [Operations](#operations)
 3. [Quantum Circuit](#quantum-circuit)
     1. [Construction](#construction-1)
-    2. [Gates](#gates)
     3. [Addition of Gates](#addition-of-gates)
     4. [Compilation and Execution](#compilation-and-execution)
 4. [Quantum Simulator](#quantum-simulator)
@@ -30,6 +36,7 @@ Usage
     2. [Profile Results](#profile-results)
     3. [Circuit Matrix](#circuit-matrix)
     4. [Circuit Image](#circuit-image)
+9. [Example](#example)
 
 
 ## Initialization
@@ -259,7 +266,7 @@ For that, the `QSimulator` class contains useful methods for accomplishing these
 
 - `statevector`: This function returns the internal statevector resulting from the circuit simulation. Useful when it is needed to see the actual states of the registers.
 - `probabilities`: Returns the probabilities of all the possible measurements that can be done in the computational basis from the statevector.
-- `qubit_probability_true`/`qubit_probability_false`: Returns the probability of measuring a single qubit `true` ($|1\rangle$) or `false` ($|0\rangle$)
+- `qubit_probability_true`/`qubit_probability_false`: Returns the probability of measuring a single qubit `true` $|1\rangle$ or `false` $|0\rangle$
 in the compuatational basis
 - `state_probability`: Returns the probability of measuring that state in the compuatational basis from the statevector.
 - `measure`: Makes a measurement on a single qubit, collapses the qubit's state in the statevector and returns the result of the measurement.
@@ -351,11 +358,11 @@ those circuits.
 
 All implemented special gates are contained in the file [`quantum_gates.h`](../include/quantum.h)
 
-- `Group_Gate`:
-- `Control_Group_Gate`:
-- `NControlGate`:
-- `Rewire_Gate`:
-- `Adjoint_Gate`:
+- `Group_Gate`: Adds a given gate at multiple specified locations
+- `Control_Group_Gate`: Adds a given gate at multiple specified locations all which are controlled by a given qubit
+- `NControlGate`: Adds a gate controlled by multiple qubits
+- `Rewire_Gate`: Reconnects the inputs of a gate to the specified targets
+- `Adjoint_Gate`: Creates the adjoint (inverse) of a given gate
 
 ## Visuals
 
@@ -396,6 +403,8 @@ For example, the following code:
     qc << aqs::H{0} << aqs::CX{ 0 , 1 };
 
     aqs::QSimulator qs{ 2 , aqs::QState::one() };
+
+    aqs::print_circuit_text_image(qc, qs);
 ```
 
 would produce the output:
@@ -409,3 +418,63 @@ would produce the output:
 ```
 
 In addition to displaying circuits, it also possible to write an schematic for the circuit image to display.
+To produce the text image given a circuit schematic, you use the function `gen_circuit_text_image` and pass a `std::string` with
+the circuit schematic.
+
+For example, the process for the circuit above with an schematic would be:
+```c++
+    std::string schematic =
+    "2;" // Declare number of qubits
+
+    "0,1;" // Initialize their states
+    "1,1;"
+
+    "H,0,1: 0;" // Add Gates
+    "X,1,1: 0 , 1;";
+
+    std::cout << aqs::gen_circuit_text_image(schematic);
+```
+
+The general structure for the schematic to create a circuit text image is the following:
+
+1. Declare the number of qubits in the circuit.
+
+2. Optionally, declare the state of each of the qubits by starting with the index of the qubit, and separated by a comma, the state of the qubit.
+    Note that only currently $|0\rangle$ and $|1\rangle$ are supported for initial states.
+
+3. Add the gates in the circuit. For each gate added you must specify:
+    1. Name of the gates (can be separated by spaces and lines by not by commas, colons, or semicolons)
+    2. Number of control qubits controlling the gate
+    3. Number of target qubit the gate is affecting
+    4. A colon to separate the list of qubits
+    5. Comma separated list of control qubits
+    6. Comma separated list of target qubits
+
+    For example: `QFT,2,4:6,1,2,3,4,5` represents a gate called `QFT` that is controlled by the qubits 1 and 6, and targets/affects
+    qubits 2,3,4, and 5.
+
+
+Note that each _statement_ is terminated by a semicolon.
+
+## Example
+One of the most challenging scientific tasks done in quantum physics is simulating a quantum system in a timely manner. With classical computers
+due to the many body interactions and the computationally intesive job of solving the Schrödinger equation, the time complexity is usually exponential.
+However, with the emergence of quantum computers, that is expected to change.
+
+Among the goals of simulating quantum systems, there is determining the **Ground Energy State** of a system, that is, the minimum energy state of the system.
+This quantity is useful because it gives us insight in the behavior of the system at certain conditions and also tells us how it evolves through time.
+Knowing the ground state is very useful in Material Science as well as in Chemistry.
+
+For example, let's take as system a hydrogen molecule $H_2$. This is a symple quantum system containing two atoms, both made up of one proton and one electron.
+Effectively, there are 4 quantum particles in this system.
+
+What we would like to find is the ground state for this system. To do this, we will use the [**Hartree-Fock Method**](https://en.wikipedia.org/wiki/Hartree%E2%80%93Fock_method) to accomplish this.
+In simple terms, what the algorithm does is to approximate the solution to the Schrödinger equation for the given hamiltonian of the system.
+In this case, our hamiltonian is a molecular hamiltonian, which in our case is just a matrix which represents the energy of the particles in the system.
+This matrix changes depending on the molecular structure, that is where the particles are located.
+
+For our simulations, lets suppose the hydrogen atoms in the molecule are separated by $1.322\r{A}$. Then after computing the molecular hamiltonian for this setup
+we obtain the matrix:
+
+Using the `decompose_hamiltonian` function we can obtain the pauli decomposition for the hamiltonian, which will allow us to see how we can express the hamiltonian with
+basic matrices.

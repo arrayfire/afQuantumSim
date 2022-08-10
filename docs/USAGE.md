@@ -594,6 +594,7 @@ For our simulations, let's suppose the hydrogen atoms in the molecule are separa
 we obtain the matrix in atomic units:
 
 $$
+    \small
     \begin{bmatrix}
          0.756 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
          0 & 0.3077 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
@@ -673,12 +674,12 @@ and the property of eigenstates to find the smallest eigenvalue.
 In essence, if we are searching the smallest eigenvalue $\lambda$ with eigenstate $|\psi\rangle$ of the matrix $\hat{H}$, then if we call $\hat{T}$ the evolution operator, for
 the evolution circuit we would have
 $$
-    \hat{T}|\psi\rangle = e^{i\hat{H}t}|\psi\rangle = e^{i\lambda t}|\psi\rangle
+\hat{T}|\psi\rangle = e^{i\hat{H}t}|\psi\rangle = e^{i\lambda t}|\psi\rangle
 $$
 
 In a quantum computer, we can't get the actual $|\psi\rangle$ state, but we can obtain the expectation value for this operation:
 $$
-    \langle\psi|\hat{T}|\psi\rangle = \langle\psi|e^{i\lambda t}|\psi\rangle = e^{i\lambda t}
+\langle\psi|\hat{T}|\psi\rangle = \langle\psi|e^{i\lambda t}|\psi\rangle = e^{i\lambda t}
 $$
 which is just a complex number from which we can obtain the value $\lambda$ and use and optimizer to minimize this quantity.
 

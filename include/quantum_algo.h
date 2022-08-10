@@ -152,6 +152,9 @@ namespace aqs
      * 
      * @param matrix hermitian matrix
      * @param range the range where the value will be searched [-range,range]
+     * @param state_circuit the type of the variational state generator circuit used for the parameters
+     * @param tolerance the precision to which the minimum eigenvalue will be search to
+     * @param max_evaluations the maximum number of optimizations trials that the algorithm will execute
      * 
      * @note Increasing the value of range will help in assuring the smallest eigenvalue, but may decrease the precision
      *       of the answer.

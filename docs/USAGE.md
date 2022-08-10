@@ -7,7 +7,7 @@ as the backend for high performance simulators across various devices.
 The main goal of this library is to provide an easy workflow for designing and simulating quantum circuits through a high level API,
 but also allowing low level access and fast, high performance computations through the use of ArrayFire.
 
-# Table of Contents
+## Table of Contents
 1. [Initialization](#initialization)
 2. [Quantum States](#quantum-states)
     1. [Construction](#construction)
@@ -36,7 +36,7 @@ but also allowing low level access and fast, high performance computations throu
     2. [Profile Results](#profile-results)
     3. [Circuit Matrix](#circuit-matrix)
     4. [Circuit Image](#circuit-image)
-9. [Example](#example)
+9. [Comprehensive Example](#comprehensive-example)
 
 
 ## Initialization
@@ -338,17 +338,106 @@ The library provides the algorithm with the similarly named function `inverse_fo
 This algorithm is really useful for obtaining the computational basis representation for qubit rotations such as in Quantum Phase Estimation.
 
 ### Grover Search
+A well-known quantum algorithm is the grover search algorithm which gets its fame for executing in $ O( \sqrt{n} ) $ complexity.
 
+The library provides an implementation of the search algorithm in the function `grover_search`. Given an oracle, that is, the gate that marks the search state, the grover gate executes the
+grover algorithm (oracle + amplification). The library also provides the `grover_oracle` function that returns a custom oracle for making one unique state.
+
+For example, searching the state `0010` using the algorithm would be written as
+```c++
+    uint32_t qubit_count = 4;
+    uint32_t marked_state = 0b0010;
+    uint32_t iterations = 1;
+    aqs::QCircuit oracle = aqs::grover_oracle(qubit_count, marked_state);
+    aqs::QCircuit grover = aqs::grover_search(qubit_count, oracle, iterations);
+```
+
+There are other algorithms that require grover iterations instead of the whole grover search algorithm, so for that there is the `grover_iteration`
+function.
+
+Note that the grover oracle circuit marks the state by changing the sign of the $|1\rangle$ component for only that state. Similarly, the grover iteration
+and grover search functions amplify only those states which were affected by the pauli-Z gate.
 
 ### Hamiltonian Decomposition
+It is common in the area of variational methods of wanting to encode a matrix into a circuit. The most straight forward way is to decompose the hamiltonian matrix
+as a sum of pauli gates operations on the circuit. For this case, the library provides the `decompose_hamiltonian` function which does exactly this. It returns a
+vector with the pauli gates layout and the coefficient for that term.
 
+```c++
+    af::array matrix;
+    ...
+
+    std::vector<std::pair<std::string, af::cfloat>> decomposition = aqs::decompose_hamiltonian(qubit_count, matrix);
+```
+
+The string part is a description of the pauli gates. It will contain the same amount of letters as number of qubits, and the letters can be `i`,
+`x`, `y`, and `z` which stand for no gate, pauli X gate, pauli Y gate, and pauli Z gate, respectively.
+
+There is also the reverse operation, in which given a description of the pauli decomposition for the matrix, the function `compose_hamiltonian` reconstructs the matrix
+and stores it into an `af::array`.
+
+```c++
+    af::array matrix = aqs::compose_hamiltonian(description);
+```
 
 ### Hamiltonian Evolution
-Another famous use for a quantum computer is its ability to simulate a quantum system in polynomial time by 
+Another famous use for a quantum computer is its ability to simulate a quantum system in polynomial time.
+This is another algorithm that the library provides through a circuit with the function `hamiltonian_evolution_circuit` which returns
+the evolved version of the hamiltonian matrix passed for a given time step.
+
+```c++
+    uint32_t step_count;
+    af::array matrix;
+
+    ...
+
+    aqs::QCircuit evolution_circuit = aqs::hamiltonian_evolution_circuit(matrix, step_count);
+```
+
+With the circuit it is possible to find the evolved state at any give time point as follows:
+```c++
+    float time;
+
+    ...
+
+    for (uint32_t i = 0; i < time * step_count; ++i)
+        qs.simulate(qc);
+```
 
 ### Variational Quantum Eigensolver
+Using quantum computers has been proving to be very useful when combined with variational methods in order to solve linear algebra problems.
+Among those problems, there is the common problem of finding the smallest eigenvalue of a matrix. This is mainly useful for determining the ground state
+of quantum systems.
 
+Therefore, the library provides an implemented version of using the Variational Quantum Eigensolver algorithm for these purposes. It utilizes
+the local non-gradient `Cobyla` optimization algorithm implemented by the `NLopt` library in conjuction to the simulations of the matrix through the quantum circuits.
 
+The function `variational_quantum_eigensolver` executes the previously mentioned algorithm and returns the found minimum eigenvalue and the parameters found
+for the state generator circuit. It takes in the hamiltonian matrix to determine the smallest eigenvalue of, the range to search the eigenvalues in,
+the type of state generator used in the variation of parameters, the precision or tolerance of the search, and the maximum number of iterations for the search.
+
+```c++
+    af::array matrix;
+
+    ...
+
+    std::pair<float, std::vector<float>> result = aqs::variational_quantum_eigensolver(matrix, range);
+
+    float minimum_eigenvalue = result.first;
+    const std::vector<float>& state_parameters = result.second;
+```
+
+The library provides two variational quantum state generators as circuits: `VQE::LINEAR` AND `VQE::FULL`. The difference between both is the capabilities of
+entaglement in the state that is generated and the number of gates for the generator. `VQE::LINEAR` has a linear number of gates while `VQE::FULL` has
+a squared number of qubits gates.
+
+With the type of state generator and the parameters obtained from the eigensolver, it is possible to recover the eigenstate as follows:
+```c++
+    std::pair<float, std::vector<float>> result = aqs::variational_quantum_eigensolver(matrix, range, VQE::FULL);
+    const std::vector<float>& state_parameters = result.second;
+
+    aqs::QCircuit state_generator = aqs::full_entanglemente_varstate(qubits, qubits, state_parameters);
+```
 
 ## Special Gates
 
@@ -370,12 +459,40 @@ For displaying measurements or circuits, the library provides many functions to 
 This functions are located in [`quantum_visuals.h`](../include/quantum_visuals.h).
 
 ### State
+In a real quantum computer it is not possible to obtain the complete quantum state of a qubit nor for the whole statevector for the quantum computer.
+However, for the simulators it is possible to obtain them which may be useful for checking mathematical models or inspecting an algorithm.
 
+That is why to visualize these quantities the library provides the functions `print_state` and `print_statevector`.
 
 ### Profile Results
+In general, to obtain results from quantum computers, qubits are measured multiple times to get an idea of the probability distributions for each state.
+As this process is random, the functions `profile_measure` and `profile_measure_all` give you a vector with the results of each measurement.
+In order to visualize the probability distributions for the states from these measurements, the library provides the `print_profile` function which displays
+the counts and overall probability for each state from the random measurements.
+
+```c++
+    aqs::QSimulator qs{ qubit_count };
+
+    ...
+
+    auto profile = qs.profile_measure_all(counts);
+
+    aqs::print_profile(profile);
+```
 
 
 ### Circuit Matrix
+As quantum circuits are represented internally by the matrices that operate on the different states. For this case, one can display the matrix representation
+of the circuit by using the function `print_circuit_matrix`.
+
+```c++
+    aqs::QCircuit qc{ qubit_count };
+
+    ...
+
+    qc.compile();
+    aqs::print_circuit_matrix(qc);
+```
 
 
 ### Circuit Image
@@ -456,7 +573,7 @@ The general structure for the schematic to create a circuit text image is the fo
 
 Note that each _statement_ is terminated by a semicolon.
 
-## Example
+## Comprehensive Example
 One of the most challenging scientific tasks done in quantum physics is simulating a quantum system in a timely manner. With classical computers
 due to the many body interactions and the computationally intesive job of solving the Schrödinger equation, the time complexity is usually exponential.
 However, with the emergence of quantum computers, that is expected to change.
@@ -473,8 +590,118 @@ In simple terms, what the algorithm does is to approximate the solution to the S
 In this case, our hamiltonian is a molecular hamiltonian, which in our case is just a matrix which represents the energy of the particles in the system.
 This matrix changes depending on the molecular structure, that is where the particles are located.
 
-For our simulations, lets suppose the hydrogen atoms in the molecule are separated by $1.322\r{A}$. Then after computing the molecular hamiltonian for this setup
-we obtain the matrix:
+For our simulations, let's suppose the hydrogen atoms in the molecule are separated by $1.322 \text{ \r{A} }$. Then after computing the molecular hamiltonian for this setup
+we obtain the matrix in atomic units:
 
-Using the `decompose_hamiltonian` function we can obtain the pauli decomposition for the hamiltonian, which will allow us to see how we can express the hamiltonian with
-basic matrices.
+$$
+    \begin{bmatrix}
+         0.756 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0.3077 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0.3077 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0.5645 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.1790 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & -0.5219& 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & -0.4784& 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & -0.2994& 0 & 0 & -0.1790& 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.4491 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -0.5219& 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & -0.1790& 0 & 0 & -0.2994& 0 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 &-0.4784 & 0 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.4491 & 0 & 0 & 0 & 0\\
+         0 & 0 & 0 & 0.179 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1.1173& 0 & 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -0.4032& 0 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 &-0.4032 & 0\\
+         0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1.0161
+    \end{bmatrix}
+$$
+
+Quite the handful of a matrix. Using the `decompose_hamiltonian` function we can obtain the pauli decomposition for the hamiltonian, which will allow us to see how we can express the hamiltonian with
+basic pauli matrices. This allows us to represent this matrix into a more compact way:
+
+```c++
+    auto hamiltonian_description = aqs::compose_hamiltonian(hamiltonian_matrix);
+    /* Returns
+
+        std::vector<std::pair<std::string, af::cfloat>> hamiltonian_description = {
+        {"iizi", {-0.24274501250395486f}},
+        {"iiiz", {-0.24274501250395486f}},
+        {"iiii", {-0.04207255204090424f}},
+        {"ziii", {0.17771358235540047f}},
+        {"izii", {0.1777135823554005f}},
+        {"zizi", {0.12293330446049033f}},
+        {"iziz", {0.12293330446049033f}},
+        {"ziiz", {0.16768338851167847f}},
+        {"izzi", {0.16768338851167847f}},
+        {"zzii", {0.17059759275420894f}},
+        {"iizz", {0.1762766138632343}},
+        {"yyxx", {-0.044750084051188126f}},
+        {"xxyy", {-0.044750084051188126f}},
+        {"yxxy", {0.044750084051188126f}},
+        {"xyyx", {0.044750084051188126f}}
+        };
+    */
+```
+
+However, the actual usefulness comes from the simulation of evolution of pauli gates is straight forward to implement in
+quantum circuits.
+You can observe the circuit representation of the evolved matrix by using `hamiltonian_evolution_circuit`:
+```c++
+    aqs::QCircuit evolved_circuit = aqs::hamiltonian_evolution_circuit(hamiltonian_matrix, 1);
+
+    aqs::print_circuit_text_image(evolved_circuit, aqs::QSimulator{4});
+```
+
+This would output:
+
+```
+     ┌──────┐    ┌───────┐    ┌──────┐                                                                                                                      ┌───┐    ┌──────┐                                                                      ┌───┐    ┌──────┐    ┌───┐                                                                                  ┌───┐                ┌───┐    ┌──────┐                                                                      ┌───┐    ┌──────┐    ┌───┐                                                                         ┌───┐                                                                                                           
+|0⟩──┤ RotZ ├────┤ Phase ├────┤ RotZ ├──────────────────█────────────────────█────────────────────█────────────────────█────────────────────────────────────┤ Y ├────┤ RotX ├──────█────────────────────────────────────────────────────────█──────┤ Y ├────┤ RotX ├────┤ H ├──────────────────█────────────────────────────────────────────────────────█──────┤ H ├────────────────┤ Y ├────┤ RotX ├──────█────────────────────────────────────────────────────────█──────┤ Y ├────┤ RotX ├────┤ H ├──────█───────────────────────────────────────────────────────────█──────┤ H ├─────────────────────█────────────────────█────────────────────────────────────────────────────────────────
+     └──────┘    └───────┘    └──────┘                  │                    │                    │                    │                                    └───┘    └──────┘      │                                                        │      └───┘    └──────┘    └───┘                  │                                                        │      └───┘                └───┘    └──────┘      │                                                        │      └───┘    └──────┘    └───┘      │                                                           │      └───┘                     │                    │                                                                
+     ┌──────┐    ┌───────┐                ┌──────┐    ┌─┴─┐    ┌──────┐    ┌─┴─┐                  │                    │                                    ┌───┐    ┌──────┐    ┌─┴─┐                                                    ┌─┴─┐    ┌───┐    ┌──────┐    ┌───┐    ┌──────┐    ┌─┴─┐                                                    ┌─┴─┐    ┌───┐    ┌──────┐    ┌───┐                ┌─┴─┐                                                    ┌─┴─┐    ┌───┐                ┌───┐    ┌─┴─┐                                                       ┌─┴─┐    ┌───┐                     │                    │                                                                
+|0⟩──┤ RotZ ├────┤ Phase ├────────────────┤ RotZ ├────┤ X ├────┤ RotZ ├────┤ X ├──────────────────┼────────────────────┼────────█────────────────────█──────┤ Y ├────┤ RotX ├────┤ X ├──────█──────────────────────────────────────█──────┤ X ├────┤ Y ├────┤ RotX ├────┤ Y ├────┤ RotX ├────┤ X ├──────█──────────────────────────────────────█──────┤ X ├────┤ Y ├────┤ RotX ├────┤ H ├────────────────┤ X ├──────█──────────────────────────────────────█──────┤ X ├────┤ H ├────────────────┤ H ├────┤ X ├─────────█──────────────────────────────────────█──────┤ X ├────┤ H ├─────────────────────┼────────────────────┼────────█────────────────────█──────────────────────────────────
+     └──────┘    └───────┘                └──────┘    └───┘    └──────┘    └───┘                  │                    │        │                    │      └───┘    └──────┘    └───┘      │                                      │      └───┘    └───┘    └──────┘    └───┘    └──────┘    └───┘      │                                      │      └───┘    └───┘    └──────┘    └───┘                └───┘      │                                      │      └───┘    └───┘                └───┘    └───┘         │                                      │      └───┘    └───┘                     │                    │        │                    │                                  
+     ┌──────┐    ┌───────┐                                                          ┌──────┐    ┌─┴─┐    ┌──────┐    ┌─┴─┐    ┌─┴─┐    ┌──────┐    ┌─┴─┐    ┌───┐                         ┌─┴─┐                                  ┌─┴─┐    ┌───┐                         ┌───┐    ┌──────┐             ┌─┴─┐                                  ┌─┴─┐    ┌───┐    ┌──────┐             ┌───┐                         ┌─┴─┐                                  ┌─┴─┐    ┌───┐                         ┌───┐    ┌──────┐    ┌─┴─┐                                  ┌─┴─┐    ┌───┐    ┌──────┐                  │                    │        │                    │                                  
+|0⟩──┤ RotZ ├────┤ Phase ├──────────────────────────────────────────────────────────┤ RotZ ├────┤ X ├────┤ RotZ ├────┤ X ├────┤ X ├────┤ RotZ ├────┤ X ├────┤ H ├─────────────────────────┤ X ├──────█────────────────────█──────┤ X ├────┤ H ├─────────────────────────┤ Y ├────┤ RotX ├─────────────┤ X ├──────█────────────────────█──────┤ X ├────┤ Y ├────┤ RotX ├─────────────┤ H ├─────────────────────────┤ X ├──────█────────────────────█──────┤ X ├────┤ H ├─────────────────────────┤ Y ├────┤ RotX ├────┤ X ├──────█────────────────────█──────┤ X ├────┤ Y ├────┤ RotX ├──────────────────┼────────────────────┼────────┼────────────────────┼────────█────────────────────█────
+     └──────┘    └───────┘                                                          └──────┘    └───┘    └──────┘    └───┘    └───┘    └──────┘    └───┘    └───┘                         └───┘      │                    │      └───┘    └───┘                         └───┘    └──────┘             └───┘      │                    │      └───┘    └───┘    └──────┘             └───┘                         └───┘      │                    │      └───┘    └───┘                         └───┘    └──────┘    └───┘      │                    │      └───┘    └───┘    └──────┘                  │                    │        │                    │        │                    │    
+     ┌──────┐    ┌───────┐                                                                                                                                  ┌───┐                                  ┌─┴─┐    ┌──────┐    ┌─┴─┐    ┌───┐                                  ┌───┐                                  ┌─┴─┐    ┌──────┐    ┌─┴─┐    ┌───┐                                  ┌───┐    ┌──────┐                      ┌─┴─┐    ┌──────┐    ┌─┴─┐    ┌───┐    ┌──────┐                      ┌───┐    ┌──────┐             ┌─┴─┐    ┌──────┐    ┌─┴─┐    ┌───┐    ┌──────┐             ┌──────┐    ┌─┴─┐    ┌──────┐    ┌─┴─┐    ┌─┴─┐    ┌──────┐    ┌─┴─┐    ┌─┴─┐    ┌──────┐    ┌─┴─┐  
+|0⟩──┤ RotZ ├────┤ Phase ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤ H ├──────────────────────────────────┤ X ├────┤ RotZ ├────┤ X ├────┤ H ├──────────────────────────────────┤ H ├──────────────────────────────────┤ X ├────┤ RotZ ├────┤ X ├────┤ H ├──────────────────────────────────┤ Y ├────┤ RotX ├──────────────────────┤ X ├────┤ RotZ ├────┤ X ├────┤ Y ├────┤ RotX ├──────────────────────┤ Y ├────┤ RotX ├─────────────┤ X ├────┤ RotZ ├────┤ X ├────┤ Y ├────┤ RotX ├─────────────┤ RotZ ├────┤ X ├────┤ RotZ ├────┤ X ├────┤ X ├────┤ RotZ ├────┤ X ├────┤ X ├────┤ RotZ ├────┤ X ├──
+     └──────┘    └───────┘                                                                                                                                  └───┘                                  └───┘    └──────┘    └───┘    └───┘                                  └───┘                                  └───┘    └──────┘    └───┘    └───┘                                  └───┘    └──────┘                      └───┘    └──────┘    └───┘    └───┘    └──────┘                      └───┘    └──────┘             └───┘    └──────┘    └───┘    └───┘    └──────┘             └──────┘    └───┘    └──────┘    └───┘    └───┘    └──────┘    └───┘    └───┘    └──────┘    └───┘  
+```
+
+We care about evolving the hamiltonian matrix for finding the minimum eigenvalue because it allows representing any hermitian matrix with unitary matrix operations
+and the property of eigenstates to find the smallest eigenvalue.
+
+In essence, if we are searching the smallest eigenvalue $\lambda$ with eigenstate $|\psi\rangle$ of the matrix $\hat{H}$, then if we call $\hat{T}$ the evolution operator, for
+the evolution circuit we would have
+$$
+    \hat{T}|\psi\rangle = e^{i\hat{H}t}|\psi\rangle = e^{i\lambda t}|\psi\rangle
+$$
+
+In a quantum computer, we can't get the actual $|\psi\rangle$ state, but we can obtain the expectation value for this operation:
+$$
+    \langle\psi|\hat{T}|\psi\rangle = \langle\psi|e^{i\lambda t}|\psi\rangle = e^{i\lambda t}
+$$
+which is just a complex number from which we can obtain the value $\lambda$ and use and optimizer to minimize this quantity.
+
+All of this procedure is done inside the function `variational_quantum_eigensolver` so we just need to give the matrix we are trying to find the minimum eigenvalue of
+with some other parameters and it will do the work for us.
+
+For our case, we can set the search space of the eigenvalue to be $[-10, 10]$ by setting `range = 10`. For the variational state generator we can set either one as it is a simple
+matrix, lets leave it as the default of `AQS::LINEAR`, for the tolerance let's leave it at 0 for maximum precision, and let's use 1000 iterations for the optimization algorithm.
+
+```c++
+    float range = 10.f;
+    float tolerance = 0.f;
+    uint32_t iterations = 1000;
+
+    auto result = aqs::variational_quantum_eigensolver(hamiltonian_matrix, range, aqs::VQE::LINEAR, tolerance, iterations);
+
+    auto ground_state = result.first;
+```
+
+After the algorithm runs, it will output a `std::pair` contain the minimum eigenvalue in the first result of the pair.
+Thus the ground state energy for the $H_2$ is that minimum eigenvalue. You can expect the output to be around the value of $-1.125\text{Ha}$
+which is close to the expected $-1.1362 \text{Ha}$ for the given arrangement of the molecule.
+
+While running this algorithm in a classical computer may not be as efficient as other method, his goes to show the usefulness of quantum methods and algorithms that
+can be useful to solve these kinds of problems, and having a library which gives you the tools to work with this kind of algorithms and develop their own algorithm goes the extra mile in
+researching Quantum Computing.

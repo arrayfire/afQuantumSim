@@ -53,7 +53,7 @@ void generic_hamiltonian_example()
 
     // Create a hamiltonian evolution of 1/10 the scale
     int scale = 10;
-    auto hamil_circuit = aqs::hamiltonian_evolution_circuit(hamil_matrix, scale);
+    auto hamil_circuit = aqs::hamiltonian_evolution_circuit(hamil_matrix, scale, true);
     std::cout << "Pauli representation of the hamiltonian: " << aqs::decompose_hamiltonian(hamil_matrix, 2) << "\n";
 
     std::cout << "Hamiltonian evolution circuit matrix:\n";
@@ -68,7 +68,7 @@ void generic_hamiltonian_example()
     const auto& fparams = pair.second;
 
     // Display the state generator circuit from the paramaters
-    auto state_circuit = aqs::linear_entanglement_varstate(qubits, qubits, fparams);
+    auto state_circuit = aqs::linear_entanglement_varstate(qubits, qubits, fparams, true);
     aqs::QSimulator qs(qubits);
     qs.simulate(state_circuit);
 

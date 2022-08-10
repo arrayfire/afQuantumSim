@@ -590,7 +590,7 @@ In simple terms, what the algorithm does is to approximate the solution to the S
 In this case, our hamiltonian is a molecular hamiltonian, which in our case is just a matrix which represents the energy of the particles in the system.
 This matrix changes depending on the molecular structure, that is where the particles are located.
 
-For our simulations, let's suppose the hydrogen atoms in the molecule are separated by $1.322\,\overset{\circ}{A}$. Then after computing the molecular hamiltonian for this setup
+For our simulations, let's suppose the hydrogen atoms in the molecule are separated by $1.322 \; \overset{\circ}{A}$. Then after computing the molecular hamiltonian for this setup
 we obtain the matrix in atomic units:
 
 $$

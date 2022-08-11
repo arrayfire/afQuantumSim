@@ -595,10 +595,11 @@ In simple terms, what the algorithm does is to approximate the solution to the S
 In this case, our hamiltonian is a molecular hamiltonian, which in our case is just a matrix which represents the energy of the particles in the system.
 This matrix changes depending on the molecular structure, that is where the particles are located.
 
-For our simulations, let's suppose the hydrogen atoms in the molecule are separated by $1.322 \text{ \r{A} }$. Then after computing the molecular hamiltonian for this setup
+For our simulations, let's suppose the hydrogen atoms in the molecule are separated by $1.322  \overset{\circ}{A}$. Then after computing the molecular hamiltonian for this setup
 we obtain the matrix in atomic units:
 
 $$
+    \small
     \begin{bmatrix}
          0.756 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
          0 & 0.3077 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
@@ -677,14 +678,10 @@ and the property of eigenstates to find the smallest eigenvalue.
 
 In essence, if we are searching the smallest eigenvalue $\lambda$ with eigenstate $|\psi\rangle$ of the matrix $\hat{H}$, then if we call $\hat{T}$ the evolution operator, for
 the evolution circuit we would have
-$$
-    \hat{T}|\psi\rangle = e^{i\hat{H}t}|\psi\rangle = e^{i\lambda t}|\psi\rangle
-$$
+$$\hat{T}|\psi\rangle = e^{i\hat{H}t}|\psi\rangle = e^{i\lambda t}|\psi\rangle$$
 
 In a quantum computer, we can't get the actual $|\psi\rangle$ state, but we can obtain the expectation value for this operation:
-$$
-    \langle\psi|\hat{T}|\psi\rangle = \langle\psi|e^{i\lambda t}|\psi\rangle = e^{i\lambda t}
-$$
+$$\langle\psi|\hat{T}|\psi\rangle = \langle\psi|e^{i\lambda t}|\psi\rangle = e^{i\lambda t}$$
 which is just a complex number from which we can obtain the value $\lambda$ and use and optimizer to minimize this quantity.
 
 All of this procedure is done inside the function `variational_quantum_eigensolver` so we just need to give the matrix we are trying to find the minimum eigenvalue of
@@ -704,8 +701,8 @@ matrix, lets leave it as the default of `AQS::LINEAR`, for the tolerance let's l
 ```
 
 After the algorithm runs, it will output a `std::pair` contain the minimum eigenvalue in the first result of the pair.
-Thus the ground state energy for the $H_2$ is that minimum eigenvalue. You can expect the output to be around the value of $-1.125\text{Ha}$
-which is close to the expected $-1.1362 \text{Ha}$ for the given arrangement of the molecule.
+Thus the ground state energy for the $H_2$ is that minimum eigenvalue. You can expect the output to be around the value of $-1.125\text{ Ha}$
+which is close to the expected $-1.1362 \text{ Ha}$ for the given arrangement of the molecule.
 
 While running this algorithm in a classical computer may not be as efficient as other method, his goes to show the usefulness of quantum methods and algorithms that
 can be useful to solve these kinds of problems, and having a library which gives you the tools to work with this kind of algorithms and develop their own algorithm goes the extra mile in

@@ -27,7 +27,7 @@ A simple example to simulate entaglement of two qubits:
     // Add gates to the circuit
     qc << aqs::H{0} << aqs::CX{ 0 , 1 };
 
-    // Compile the circuit
+    // Compile the circuit (Optional)
     qc.compile();
 
     // Create a 2-qubit Simulator with qubits initialized to the |1> state
@@ -86,6 +86,8 @@ git clone https://github.com/edwinsolisf/afQuantumSim.git my_path
 3. Add the correct include path and link the library into your program
 
     - CMake: link with the target `afquantum`
+
+You can compile the examples, tests, and benchmarks in CMake by enabling the options `AQS_BUILD_EXAMPLES`, `AQS_BUILD_TESTS`, and `AQS_BUILD_BENCHMARKS`, respectively.
 
 ## Requirements
 

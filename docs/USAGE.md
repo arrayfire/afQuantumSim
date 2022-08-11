@@ -179,6 +179,9 @@ After this function is called, all the gates that have been added modify the `QC
 The result of this computation is stored in an internal `af::array` that stores the matrix representation of the circuit. You can retrieve this
 result by calling the `circuit()` function.
 
+Note that this operation is only required if a the matrix representation of the circuit is needed. You are able to simulate the circuit directly
+without compilation.
+
 ## Quantum Simulator
 While it is nice to get the representation of a circuit in matrix form, the main usefulness of a Quantum Computer is to measure the way the circuit
 affects the state of the qubits, and then meaasure them. In addition, it is desirable to be able to test the same circuit with different inputs and
@@ -260,6 +263,8 @@ After executing this function, the computation will start and once finished, the
 This way, it is possible to chain computations of different circuits from the result of a simulation to the input of another, by just calling
 the `simulate` function with the next circuit in line.
 
+Note that when simulating, the computation will use the circuit matrix if its has been compiled; otherwise, it will compute the gates individually on the statevector.
+
 ### Results
 After the simulation is done, we would like to obtain results in the form of measurements, probabilities, or even the actual resulting statevector.
 For that, the `QSimulator` class contains useful methods for accomplishing these tasks:
@@ -286,7 +291,7 @@ The general workflow for simulating quantum circuits with this library can be de
     // Add the gates
     qc << Gates;
 
-    // Compile the circuit
+    // Compile the circuit (Optional)
     qc.compile();
 
     // Create the simulator

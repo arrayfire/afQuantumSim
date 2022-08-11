@@ -91,7 +91,7 @@ void quantum_shor_algorithm()
     qs.generate_statevector();
 
     std::cout << "Generating circuit...\n";
-    qc.compile();
+    //qc.compile();
 
     std::cout << "Executing Simulation...\n";
     qs.simulate(qc);

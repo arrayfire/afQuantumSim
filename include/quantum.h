@@ -47,9 +47,10 @@
  * 
  * 4. Call the QCircuit member function `aqs::QCircuit::compile` to generate the internal matrix representation
  *    of the circuit.
+ *    This step is not required if the internal matrix representation of the circuit is not needed.
  *    Note that this function can be call anywhere, but it will only generate the matrix of the all gates
  *    that have been added prior to that point. This function executes the compilation (math calculations) 
- *    of the circuit, so it is performance intensive; for more than 10 qubits it might take a while
+ *    of the circuit, so it is performance intensive; for more than 10 qubits it might take a while.
  * 
  *    e.g. qc.compile();
  * 

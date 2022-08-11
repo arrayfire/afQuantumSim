@@ -19,7 +19,7 @@ namespace aqs
         if (marked_state >= fast_pow2(search_qubits))
             throw std::invalid_argument{"Marked state should be in the range [0, 2^search_qubits)"};
 
-        QCircuit qc(search_qubits);
+        QCircuit qc{ search_qubits };
 
         for (uint32_t i = 0; i < search_qubits; ++i)
         {
@@ -28,7 +28,7 @@ namespace aqs
         }
 
         //Generate a N-Control Z gate
-        qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
+        qc << Gate{NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0};
 
         for (int32_t i = 0; i < search_qubits; ++i)
         {
@@ -53,9 +53,9 @@ namespace aqs
 
         for (uint32_t i = 0; i < iterations; ++i)
         {
-            qc << Barrier(false);
-            qc << Gate(oracle, 0, oracle_name);
-            qc << Barrier(false);
+            qc << Barrier{false};
+            qc << Gate{oracle, 0, oracle_name};
+            qc << Barrier{false};
             
             for (uint32_t j = 0; j < search_qubits; ++j)
                 qc << H{j};
@@ -66,7 +66,7 @@ namespace aqs
             //qc << Z{search_qubits - 1};
             
             //Generate a N-Control Z gate
-            qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
+            qc << Gate{NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0};
 
             for (uint32_t j = 0; j < search_qubits; ++j)
             {
@@ -83,22 +83,22 @@ namespace aqs
 
     QCircuit grover_iteration(uint32_t search_qubits, const QCircuit& oracle, uint32_t iterations, bool compile)
     {
-        QCircuit qc(search_qubits);
+        QCircuit qc{ search_qubits };
         for (uint32_t i = 0; i < iterations; ++i)
         {
-            qc << Gate(oracle, 0);
+            qc << Gate{oracle, 0};
             for (uint32_t j = 0; j < search_qubits; ++j)
                 qc << H{j};
 
             for (uint32_t j = 0; j < search_qubits; ++j)
                 qc << X{j};
 
-            qc << Gate(NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0);
+            qc << Gate{NControl_Gate(search_qubits, 0, search_qubits - 1, search_qubits - 1, Z::gate()), 0};
 
             for (uint32_t j = 0; j < search_qubits; ++j)
             {
-                qc << X(j);
-                qc << H(j);
+                qc << X{j};
+                qc << H{j};
             }
         }
 
@@ -113,9 +113,9 @@ namespace aqs
         QCircuit qc(qubits);
         for (int32_t i = qubits - 1; i >= 0; --i)
         {
-            qc << H(i);
+            qc << H{ static_cast<uint32_t>(i) };
             for (uint32_t j = 0; j < i; ++j)
-                qc << CPhase(j, i, aqs::pi / (1 << (i - j)));
+                qc << CPhase{j, static_cast<uint32_t>(i), aqs::pi / (1 << (i - j))};
         }
 
         if (compile)
@@ -130,9 +130,9 @@ namespace aqs
         for (uint32_t i = 0; i < qubits; ++i)
         {
             for (int32_t j = i - 1; j >= 0; --j)
-                qc << CPhase(j, i, -aqs::pi / (1 << (i - j)));
+                qc << CPhase{ static_cast<uint32_t>(j), i, -aqs::pi / (1 << (i - j)) };
 
-            qc << H(i);
+            qc << H{i};
         }
 
         if (compile)
@@ -470,14 +470,14 @@ namespace aqs
                 break;
             }
 
-            qc.compile();
+            //qc.compile();
             qs.generate_statevector();
             qs.simulate(qc);
 
             auto bra_state = af::transpose(qs.statevector(), true);
 
             qc << aqs::Gate{hamiltonian, 0};
-            qc.compile();
+            //qc.compile();
             qs.generate_statevector();
             qs.simulate(qc);
 

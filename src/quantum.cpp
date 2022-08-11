@@ -288,6 +288,12 @@ void QSimulator::simulate(const QCircuit& circuit)
         throw std::invalid_argument{"Number of qubit states and circuit input qubit states do not match"};
 
     statevector_ = af::matmul(circuit.circuit(), statevector_);
+
+    QCircuit temp{qubit_count()};
+    temp.circuit() = statevector_;
+    for (std::size_t i = circuit.cached_index_; i < circuit.gate_list().size(); ++i)
+        circuit.gate_list()[i]->operator()(temp);
+    statevector_ = temp.circuit();
 }
 
 bool QSimulator::peek_measure(uint32_t qubit) const
@@ -1738,37 +1744,43 @@ QCircuit& Gate::operator()(QCircuit& qc) const
     if (target_qubit_begin + qubit_count > qubits)
         throw std::out_of_range{"Cannot add gate at the given qubit position"};
 
-    const uint32_t circuit_qubits = qc.qubit_count();
-    const uint32_t circuit_states = qc.state_count();
-    const uint32_t gate_qubits = qubit_count;
-    const uint32_t gate_states = 1 << gate_qubits;
-    const uint32_t gate_qubit_begin = target_qubit_begin;
-    af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
-
-    // Generate the matrix of the source circuit
-    internal_circuit->compile();
-    const af::array& gate = internal_circuit->circuit();
-
-    uint32_t rem_count = 1 << (circuit_qubits - gate_qubits);
-    
-    auto len = gate_states * gate_states * rem_count;
-    auto m = af::tile(af::flat(af::tile(af::iota(gate_states, 1, s32).T(), gate_states)), rem_count);
-    auto n = af::iota(gate_states, gate_states * rem_count, s32);
-    auto ind = af::flat(af::tile(af::iota(rem_count, 1, s32).T(), gate_states * gate_states));
-
-    // Find the target indices where the values of the source circuit should go
-    auto ii = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, n, ind, len);
-    auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, m, ind, len);
-
-    // Get a list of the entries in order where should they be placed
-    af::array gate_values = gate(n * gate_states + m);
-
-    // Replace the entries of the target matrix with the entries selected from the source matrix
-    gate_matrix(ii * circuit_states + jj) = gate_values;
-
-    // Update circuit
     auto& circuit = qc.circuit();
-    circuit = af::matmul(gate_matrix, circuit);
+    internal_circuit->compile();
+
+    if (qc.qubit_count() != internal_circuit->qubit_count())
+    {
+        const uint32_t circuit_qubits = qc.qubit_count();
+        const uint32_t circuit_states = qc.state_count();
+        const uint32_t gate_qubits = qubit_count;
+        const uint32_t gate_states = 1 << gate_qubits;
+        const uint32_t gate_qubit_begin = target_qubit_begin;
+        af::array gate_matrix = af::identity(circuit_states, circuit_states, c32);
+
+        // Generate the matrix of the source circuit
+        const af::array& gate = internal_circuit->circuit();
+
+        uint32_t rem_count = 1 << (circuit_qubits - gate_qubits);
+        
+        auto len = gate_states * gate_states * rem_count;
+        auto m = af::tile(af::flat(af::tile(af::iota(gate_states, 1, s32).T(), gate_states)), rem_count);
+        auto n = af::iota(gate_states, gate_states * rem_count, s32);
+        auto ind = af::flat(af::tile(af::iota(rem_count, 1, s32).T(), gate_states * gate_states));
+
+        // Find the target indices where the values of the source circuit should go
+        auto ii = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, n, ind, len);
+        auto jj = gen_index(gate_qubit_begin, gate_qubits, circuit_qubits, m, ind, len);
+
+        // Get a list of the entries in order where should they be placed
+        af::array gate_values = gate(n * gate_states + m);
+
+        // Replace the entries of the target matrix with the entries selected from the source matrix
+        gate_matrix(ii * circuit_states + jj) = gate_values;
+
+        // Update circuit
+        circuit = af::matmul(gate_matrix, circuit);
+    }
+    else
+        circuit = af::matmul(internal_circuit->circuit(), circuit);
 
     return qc;
 }

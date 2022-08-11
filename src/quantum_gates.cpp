@@ -20,12 +20,13 @@ namespace aqs
             throw std::invalid_argument{"Gate not supported"};
 
         std::sort(target_qubits.begin(), target_qubits.end());
-        if (target_qubits.size() >= qubits)
-            throw std::invalid_argument{"Cannot add control gate at the given position"};
+        if (target_qubits.size() > qubits)
+            throw std::invalid_argument{"Cannot add more target qubits than there are total qubits"};
 
         gate.compile();
         QCircuit qc{qubits};
 
+        /*
         af::array circuit = af::identity(fast_pow2(target_qubits.front()), fast_pow2(target_qubits.front()), c32);
         circuit = tensor_product(circuit, gate.circuit());
 
@@ -39,6 +40,10 @@ namespace aqs
 
         qc.circuit() = tensor_product(circuit, af::identity(
                                 fast_pow2(qubits - 1 - target_qubits.back()), fast_pow2(qubits - 1 - target_qubits.back()), c32));
+        */
+
+        for (const auto& qubit : target_qubits)
+            qc << Gate{gate, qubit};
 
         if (compile)
             qc.compile();

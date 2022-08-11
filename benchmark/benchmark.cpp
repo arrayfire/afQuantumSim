@@ -20,7 +20,7 @@ void qft(uint32_t qubits)
     aqs::QCircuit qc = aqs::fourier_transform(qubits);
     aqs::QSimulator qs{ qubits };
 
-    qc.compile();
+    //qc.compile();
     qs.simulate(qc);
 
     auto result = qs.statevector();
@@ -89,7 +89,7 @@ void shor(uint32_t qubits)
 
     qc << aqs::Gate(aqs::inverse_fourier_transform(output), 0, "QFT†");
 
-    qc.compile();
+    //qc.compile();
     qs.simulate(qc);
 
     int reps = 1e4;
@@ -164,7 +164,7 @@ void grover(uint32_t qubits)
     aqs::QCircuit qc = aqs::grover_search(qubits, aqs::grover_oracle(qubits, marked_state), iterations);
     aqs::QSimulator qs{ qubits };
 
-    qc.compile();
+    //qc.compile();
     qs.simulate(qc);
 
     auto result = qs.statevector();

@@ -13,6 +13,7 @@
 
 #include "utils.h"
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 

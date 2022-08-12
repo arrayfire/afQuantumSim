@@ -14,11 +14,10 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 find_package(ArrayFire REQUIRED)
-find_package(nlopt REQUIRED)
+find_package(NLopt REQUIRED)
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile"
-  "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
-
+               "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
 
 add_library(afquantum
                 src/quantum.cpp
@@ -37,16 +36,18 @@ target_include_directories(afquantum PUBLIC include)
 set(AF_BUILD_BACKEND ArrayFire::af CACHE STRING "Arrayfire backend type")
 target_link_libraries(afquantum PRIVATE NLopt::nlopt PUBLIC ${AF_BUILD_BACKEND})
 
-option(AQS_BUILD_EXAMPLES   "Build AQS Examples" ON)
-option(AQS_BUILD_TESTS      "Build AQS Tests"    ON)
-option(AQS_BUILD_BENCHMARKS "Build benchmarks"   OFF)
+option(AQS_BUILD_EXAMPLES      "Build AQS Examples" ON)
+option(AQS_BUILD_TESTS         "Build AQS Tests"    ON)
+option(AQS_BUILD_BENCHMARKS    "Build benchmarks"   OFF)
 
 if (${AQS_BUILD_EXAMPLES})
         add_subdirectory(examples)
 endif()
+
 if (${AQS_BUILD_TESTS})
         add_subdirectory(test)
 endif()
+
 if (${AQS_BUILD_BENCHMARKS})
         add_subdirectory(benchmark)
 endif()

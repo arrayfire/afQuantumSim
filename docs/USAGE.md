@@ -2,7 +2,7 @@ Usage
 ======
 
 ArrayFire Quantum Simulator AQS is a C++14 Quantum Computer Simulator library using ArrayFire
-as the backend for high performance simulators across various devices.
+as the backend for high-performance simulators across various devices.
 
 The main goal of this library is to provide an easy workflow for designing and simulating quantum circuits through a high level API,
 but also allowing low level access and fast, high performance computations through the use of ArrayFire.
@@ -58,7 +58,7 @@ It uses the default backend set by ArrayFire and the first device from that back
 
 ## Quantum States
 
-In this library, `QState` represents the quantum state of a qubit expressed with $|0\rangle$ and $|1\rangle$ in the computational basis
+In this library, `QState` represents the quantum state of a qubit expressed with $|0\rangle$ and $|1\rangle$ in the computational basis.
 It stores the normalized components of the basis vectors. It is located in the [`quantum.h`](../include/quantum.h) file.
 
 ### Construction
@@ -103,7 +103,7 @@ Example:
 While it is possible to simulate a quantum computer with qubits using individual `QState`s, it limits the usefulness
 of taking advantage of the entangling multiple qubits needed for quantum algorithms.
 
-So for simulating a quantum circuit, the library provides `QCircuit` class which manages the creation of a circuit with
+So for simulating a quantum circuit, the library provides the `QCircuit` class which manages the creation of a circuit with
 multiple quantum gates.
 
 ### Construction
@@ -271,8 +271,8 @@ For that, the `QSimulator` class contains useful methods for accomplishing these
 
 - `statevector`: This function returns the internal statevector resulting from the circuit simulation. Useful when it is needed to see the actual states of the registers.
 - `probabilities`: Returns the probabilities of all the possible measurements that can be done in the computational basis from the statevector.
-- `qubit_probability_true`/`qubit_probability_false`: Returns the probability of measuring a single qubit `true` $|1\rangle$ or `false` $|0\rangle$
-in the compuatational basis
+- `qubit_probability_true` and `qubit_probability_false`: Returns the probability of measuring a single qubit `true` $|1\rangle$ and `false` $|0\rangle$
+in the compuatational basis, respectively.
 - `state_probability`: Returns the probability of measuring that state in the compuatational basis from the statevector.
 - `measure`: Makes a measurement on a single qubit, collapses the qubit's state in the statevector and returns the result of the measurement.
 - `measure_all`: Makes a measurement of the whole statevector, updates the statevector array to this measurement, and returns the result of the statevector measurement.
@@ -673,8 +673,8 @@ This would output:
      └──────┘    └───────┘                                                                                                                                  └───┘                                  └───┘    └──────┘    └───┘    └───┘                                  └───┘                                  └───┘    └──────┘    └───┘    └───┘                                  └───┘    └──────┘                      └───┘    └──────┘    └───┘    └───┘    └──────┘                      └───┘    └──────┘             └───┘    └──────┘    └───┘    └───┘    └──────┘             └──────┘    └───┘    └──────┘    └───┘    └───┘    └──────┘    └───┘    └───┘    └──────┘    └───┘  
 ```
 
-We care about evolving the hamiltonian matrix for finding the minimum eigenvalue because it allows representing any hermitian matrix with unitary matrix operations
-and the property of eigenstates to find the smallest eigenvalue.
+We care about evolving the hamiltonian matrix for finding the minimum eigenvalue because it allows us to represent any hermitian matrix with unitary matrix operations
+and use the property of eigenstates to find the smallest eigenvalue.
 
 In essence, if we are searching the smallest eigenvalue $\lambda$ with eigenstate $|\psi\rangle$ of the matrix $\hat{H}$, then if we call $\hat{T}$ the evolution operator, for
 the evolution circuit we would have
@@ -688,7 +688,7 @@ All of this procedure is done inside the function `variational_quantum_eigensolv
 with some other parameters and it will do the work for us.
 
 For our case, we can set the search space of the eigenvalue to be $[-10, 10]$ by setting `range = 10`. For the variational state generator we can set either one as it is a simple
-matrix, lets leave it as the default of `AQS::LINEAR`, for the tolerance let's leave it at 0 for maximum precision, and let's use 1000 iterations for the optimization algorithm.
+matrix, let's leave it as the default of `AQS::LINEAR`, for the tolerance let's leave it at 0 for maximum precision, and let's use 1000 iterations for the optimization algorithm.
 
 ```c++
     float range = 10.f;
@@ -704,6 +704,6 @@ After the algorithm runs, it will output a `std::pair` contain the minimum eigen
 Thus the ground state energy for the $H_2$ is that minimum eigenvalue. You can expect the output to be around the value of $-1.125\text{ Ha}$
 which is close to the expected $-1.1362 \text{ Ha}$ for the given arrangement of the molecule.
 
-While running this algorithm in a classical computer may not be as efficient as other method, his goes to show the usefulness of quantum methods and algorithms that
+While running this algorithm in a classical computer may not be as efficient as other method, this goes to show the usefulness of quantum methods and algorithms that
 can be useful to solve these kinds of problems, and having a library which gives you the tools to work with this kind of algorithms and develop their own algorithm goes the extra mile in
 researching Quantum Computing.

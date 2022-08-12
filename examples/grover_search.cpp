@@ -11,6 +11,7 @@
 #include "quantum_algo.h"
 #include "quantum_visuals.h"
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 

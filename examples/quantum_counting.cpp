@@ -14,6 +14,7 @@
 
 #include "utils.h"
 
+#include <algorithm>
 #include <iostream>
 
 void quantum_counting()

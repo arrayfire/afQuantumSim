@@ -13,6 +13,7 @@
 
 #include "utils.h"
 
+#include <algorithm>
 #include <iostream>
 
 void quantum_phase_estimation_example()

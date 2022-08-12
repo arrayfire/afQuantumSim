@@ -89,6 +89,17 @@ git clone https://github.com/edwinsolisf/afQuantumSim.git my_path
 
 You can compile the examples, tests, and benchmarks in CMake by enabling the options `AQS_BUILD_EXAMPLES`, `AQS_BUILD_TESTS`, and `AQS_BUILD_BENCHMARKS`, respectively.
 
+## Documentation
+
+A walkthrough on how to use the library is provided inside the [`USAGE.md`](docs/USAGE.md) file inside `docs`.
+
+For information on specific methods and classes, you can build the Doxygen documentation with the Doxyfile created by CMake in the `build` folder:
+```sh
+    cd my_path/build
+    Doxygen
+    open html/index.html
+```
+
 ## Requirements
 
 ### [ArrayFire](https://github.com/arrayfire/arrayfire)

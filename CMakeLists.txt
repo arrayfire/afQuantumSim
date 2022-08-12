@@ -16,6 +16,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 find_package(ArrayFire REQUIRED)
 find_package(nlopt REQUIRED)
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile"
+  "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
+
+
 add_library(afquantum
                 src/quantum.cpp
                 src/quantum_algo.cpp

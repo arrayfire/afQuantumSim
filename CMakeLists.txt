@@ -29,7 +29,8 @@ add_library(afquantum
                 include/quantum_algo.h
                 include/quantum_gates.h
                 include/quantum_visuals.h
-                include/utils.h)
+                include/utils.h
+                include/version.h)
 
 target_include_directories(afquantum PUBLIC include)
 

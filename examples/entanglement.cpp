@@ -32,7 +32,7 @@ void quantum_entanglement_example()
     qs.simulate(qc);
     std::cout << "State of entangled q[0] and q[1]:\n";
     aqs::print_statevector(qs);
-    //aqs::print_profile(qs.profile_measure_all(reps));
+    aqs::print_profile(qs.profile_measure_all(reps));
 
     std::cout << "\n*** Entanglement of 3 qubits ***\n\n";
 
@@ -45,7 +45,7 @@ void quantum_entanglement_example()
     qs.simulate(qc);
     std::cout << "State of entangled q[0], q[1], and q[2]:\n";
     aqs::print_statevector(qs);
-    //aqs::print_statevector(qs.profile_measure_all(reps));
+    aqs::print_profile(qs.profile_measure_all(reps));
 
     std::cout << "\n*** Entanglement of 4 qubits ***\n\n";
 
@@ -58,7 +58,7 @@ void quantum_entanglement_example()
 
     std::cout << "State of entangled q[0], q[1], q[2], and q[3]:\n";
     aqs::print_statevector(qs);
-    //qs.profile_measure_all(reps);
+    aqs::print_profile(qs.profile_measure_all(reps));
 
     std::cout << "\n*** Entanglement of 2 pair of qubits ***\n\n";
 
@@ -76,7 +76,7 @@ void quantum_entanglement_example()
 
     std::cout << "State of entangled (q[0], q[1]), and (q[2], q[3]):\n";
     aqs::print_statevector(qs);
-    //qs.profile_measure_all(reps);
+    aqs::print_profile(qs.profile_measure_all(reps));
 
     std::cout << "-------------------------\n";
 }

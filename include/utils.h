@@ -6,6 +6,12 @@
  * The complete license agreement can be obtained at:
  * http://arrayfire.com/licenses/BSD-3-Clause
  ********************************************************/
+
+/**
+ * @file utils.h
+ * @brief Implements utility functions used by AQS functions
+ * 
+ */
 #pragma once
 
 #include <arrayfire.h>

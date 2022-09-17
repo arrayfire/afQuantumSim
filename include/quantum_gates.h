@@ -7,6 +7,11 @@
  * http://arrayfire.com/licenses/BSD-3-Clause
  ********************************************************/
 
+/**
+ * @file quantum_gates.h
+ * @brief Provides the definitions of useful shortcuts for adding gates implemented by AQSß
+ * 
+ */
 #pragma once
 
 #include "quantum.h"

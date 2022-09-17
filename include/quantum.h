@@ -7,11 +7,17 @@
  * http://arrayfire.com/licenses/BSD-3-Clause
  ********************************************************/
 
+/**
+ * @file quantum.h
+ * @brief Provides the core implementation of the AQS Library functions and classes
+ * 
+ */
 #pragma once
 
 #include <arrayfire.h>
 
 #include "utils.h"
+#include "version.h"
 
 #include <array>
 #include <cassert>

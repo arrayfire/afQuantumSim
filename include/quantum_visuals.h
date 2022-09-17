@@ -6,6 +6,13 @@
  * The complete license agreement can be obtained at:
  * http://arrayfire.com/licenses/BSD-3-Clause
  ********************************************************/
+
+/**
+ * @file quantum_visuals.h
+ * @brief Provides functions for displaying useful information about quantum states and quantum circuits
+ *        implemented by AQS
+ * 
+ */
 #pragma once
 
 #include "quantum.h"

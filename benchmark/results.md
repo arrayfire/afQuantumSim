@@ -30,9 +30,9 @@ Compiled with Clang 13.1.6 x86_64-apple-darwin21.5.0
 
 |Tests\\Library|afQuantum|Qiskit|Quantum++|
 |---|---|---|---|
-|QFT| (11.29 ± 4.18) ms | (10.68 ± 4.59) ms | (12.78 ± 2.10) ms|
-|Grover| (247 ± 43) ms| (26.40 ± 0.04) ms | (1431 ± 56) ms |
-|Shor| (3927 ± 13) ms | (1776 ± 1132) ms | (2149 ± 1184) ms |
+|QFT| (6.05 ± 0.78) ms | (10.68 ± 4.59) ms | (12.78 ± 2.10) ms|
+|Grover| (192 ± 15) ms| (26.40 ± 0.04) ms | (1431 ± 56) ms |
+|Shor| (106.0 ± 3.7) ms | (1776 ± 1132) ms | (2149 ± 1184) ms |
 
 ## Results
 ### QFT

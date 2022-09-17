@@ -6,6 +6,12 @@
  * The complete license agreement can be obtained at:
  * http://arrayfire.com/licenses/BSD-3-Clause
  ********************************************************/
+
+/**
+ * @file quantum_algo.h
+ * @brief Provides the definitions of common quantum algorithms implemented by AQS
+ * 
+ */
 #pragma once
 
 #include "quantum.h"

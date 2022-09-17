@@ -1,4 +1,4 @@
-<p align="center"><img src="AQS Logo.png" width="600"></a></p>
+<p align="center"><img src="docs/aqs_logo.png" width="600"></a></p>
 
 ArrayFire Quantum Simulator AQS is a C++14 Quantum Computer Simulator library using ArrayFire
 as the backend for high performance simulators across various devices (CPUs and GPUs).
